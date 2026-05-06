@@ -28,7 +28,7 @@ app.post('/webhook/form', async (req, res) => {
       address:       body.address      || body['주소']    || '미입력',
       date:          body.date         || body['날짜']    || '미입력',
       time:          body.time         || body['시간']    || '미입력',
-      unit_count:    parseInt(body.unit_count || body['대수'] || 1),
+      unit_count:    parseInt(body.unit_count || body['대수'] || '1') || 1,
       memo:          body.memo         || body['메모']    || ''
     };
 
