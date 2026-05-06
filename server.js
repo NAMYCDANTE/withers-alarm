@@ -69,6 +69,15 @@ app.get('/requests', (req, res) => {
 });
 
 // ──────────────────────────────────────────
+// 접수 삭제
+// ──────────────────────────────────────────
+app.delete('/requests/:id', (req, res) => {
+  const { id } = req.params;
+  db.prepare('DELETE FROM requests WHERE id = ?').run(id);
+  res.json({ success: true });
+});
+
+// ──────────────────────────────────────────
 // 접수 상태 변경
 // ──────────────────────────────────────────
 app.patch('/requests/:id/status', (req, res) => {

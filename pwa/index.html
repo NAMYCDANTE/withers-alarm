@@ -145,6 +145,7 @@
     .btn-undo { background: #e2e8f0; color: #4a5568; }
     .btn-call { background: #ebf4ff; color: #1a56db; text-decoration: none; text-align: center; }
     .btn-sms { background: #faf5ff; color: #6b46c1; text-decoration: none; text-align: center; }
+    .btn-delete { background: #fff5f5; color: #c53030; }
 
     .empty {
       text-align: center;
@@ -246,8 +247,9 @@
             <button class="btn btn-complete" onclick="updateStatus(${r.id}, '완료')">✅ 완료</button>
             <button class="btn btn-cancel" onclick="updateStatus(${r.id}, '취소')">❌ 취소</button>
           ` : `
-            <button class="btn btn-undo" onclick="updateStatus(${r.id}, '접수')">↩️ 접수로 되돌리기</button>
+            <button class="btn btn-undo" onclick="updateStatus(${r.id}, '접수')">↩️ 되돌리기</button>
           `}
+          <button class="btn btn-delete" onclick="deleteRequest(${r.id}, '${r.customer_name}')">🗑️ 삭제</button>
         </div>
       </div>
     `).join('');
@@ -282,6 +284,19 @@
       render();
     } catch (e) {
       document.getElementById('last-update').textContent = '서버 연결 실패 - 재시도 중...';
+    }
+  }
+
+  async function deleteRequest(id, name) {
+    if (!confirm(name + ' 접수를 삭제할까요?')) return;
+    try {
+      await fetch(`${SERVER}/requests/${id}`, {
+        method: 'DELETE',
+        headers: { 'ngrok-skip-browser-warning': '1' }
+      });
+      await load();
+    } catch (e) {
+      alert('삭제 실패. 서버 연결을 확인해주세요.');
     }
   }
 
