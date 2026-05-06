@@ -143,6 +143,8 @@
     .btn-complete { background: #c6f6d5; color: #276749; }
     .btn-cancel { background: #fed7d7; color: #9b2c2c; }
     .btn-undo { background: #e2e8f0; color: #4a5568; }
+    .btn-call { background: #ebf4ff; color: #1a56db; text-decoration: none; text-align: center; }
+    .btn-sms { background: #faf5ff; color: #6b46c1; text-decoration: none; text-align: center; }
 
     .empty {
       text-align: center;
@@ -236,6 +238,10 @@
           ${r.memo ? `<br>📝 <span>${r.memo}</span>` : ''}
         </div>
         <div class="card-actions">
+          <a class="btn btn-call" href="tel:${r.phone}">📞 전화</a>
+          <a class="btn btn-sms" href="sms:${r.phone}?body=${encodeURIComponent(`안녕하세요 ${r.customer_name}님, 위더스환경입니다.\n${r.date} ${r.time} 에어컨 청소 ${r.status === '완료' ? '작업이 완료되었습니다. 이용해 주셔서 감사합니다!' : '예약이 확인되었습니다. 방문 예정일에 연락드리겠습니다.'}`)}" >💬 문자</a>
+        </div>
+        <div class="card-actions" style="margin-top:6px">
           ${r.status === '접수' ? `
             <button class="btn btn-complete" onclick="updateStatus(${r.id}, '완료')">✅ 완료</button>
             <button class="btn btn-cancel" onclick="updateStatus(${r.id}, '취소')">❌ 취소</button>
