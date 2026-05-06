@@ -235,7 +235,7 @@
           📞 <span>${r.phone}</span><br>
           📍 <span>${r.address}</span><br>
           📅 <span>${r.date}</span> &nbsp; ⏰ <span>${r.time}</span><br>
-          🌀 에어컨 <span>${r.unit_count}대</span>
+          🌀 <span>${r.ac_info || `에어컨 ${r.unit_count}대`}</span>
           ${r.memo ? `<br>📝 <span>${r.memo}</span>` : ''}
         </div>
         <div class="card-actions">

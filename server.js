@@ -23,13 +23,14 @@ app.post('/webhook/form', async (req, res) => {
     // 구글 설문지 응답 파싱
     // Apps Script에서 보내는 형식에 맞게 매핑
     const data = {
-      customer_name: body.customer_name || body['고객명'] || '미입력',
-      phone:         body.phone        || body['연락처']  || '미입력',
-      address:       body.address      || body['주소']    || '미입력',
-      date:          body.date         || body['날짜']    || '미입력',
-      time:          body.time         || body['시간']    || '미입력',
-      unit_count:    parseInt((body.unit_count || body['대수'] || '1').toString().replace(/[^0-9]/g, '')) || 1,
-      memo:          body.memo         || body['메모']    || ''
+      customer_name: body.customer_name || '미입력',
+      phone:         body.phone         || '미입력',
+      address:       body.address       || '미입력',
+      date:          body.date          || '미입력',
+      time:          body.time          || '미입력',
+      ac_info:       body.ac_info       || '',
+      unit_count:    parseInt((body.unit_count || '1').toString().replace(/[^0-9]/g, '')) || 1,
+      memo:          body.memo          || ''
     };
 
     // 일정 충돌 확인
@@ -41,12 +42,12 @@ app.post('/webhook/form', async (req, res) => {
 
     // DB 저장
     const stmt = db.prepare(`
-      INSERT INTO requests (customer_name, phone, address, date, time, unit_count, memo)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO requests (customer_name, phone, address, date, time, unit_count, ac_info, memo)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const result = stmt.run(
       data.customer_name, data.phone, data.address,
-      data.date, data.time, data.unit_count, data.memo
+      data.date, data.time, data.unit_count, data.ac_info, data.memo
     );
     console.log(`[DB] 저장 완료 (ID: ${result.lastInsertRowid})`);
 

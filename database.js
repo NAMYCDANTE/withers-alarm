@@ -11,11 +11,16 @@ db.exec(`
     address TEXT NOT NULL,
     date TEXT NOT NULL,
     time TEXT NOT NULL,
-    unit_count INTEGER NOT NULL,
+    unit_count INTEGER NOT NULL DEFAULT 1,
+    ac_info TEXT DEFAULT '',
     memo TEXT,
     status TEXT DEFAULT '접수',
     created_at TEXT DEFAULT (datetime('now', 'localtime'))
   );
 `);
+
+try {
+  db.exec(`ALTER TABLE requests ADD COLUMN ac_info TEXT DEFAULT ''`);
+} catch (e) {}
 
 module.exports = db;
