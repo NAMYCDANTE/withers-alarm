@@ -1,0 +1,19 @@
+{
+  "name": "withers-alarm",
+  "version": "1.0.0",
+  "description": "위더스환경 에어컨 청소 알림 시스템",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --experimental-sqlite server.js",
+    "dev": "nodemon --exec 'node --experimental-sqlite' server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.7",
+    "dotenv": "^16.4.1",
+    "body-parser": "^1.20.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  }
+}

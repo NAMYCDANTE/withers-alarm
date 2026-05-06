@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="위더스환경">
+  <title>위더스환경 접수 관리</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1a56db, #0e3fa0);
+      color: white;
+      padding: 20px 16px 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    header h1 { font-size: 18px; font-weight: 700; }
+    header p { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+
+    .badge {
+      display: inline-block;
+      background: #f56565;
+      color: white;
+      border-radius: 12px;
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-left: 8px;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .new-alert {
+      background: #c6f6d5;
+      border-left: 4px solid #38a169;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #276749;
+      display: none;
+    }
+
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      padding: 12px 16px;
+      overflow-x: auto;
+      background: white;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .filter-btn {
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1.5px solid #e2e8f0;
+      background: white;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+      font-weight: 500;
+    }
+
+    .filter-btn.active {
+      background: #1a56db;
+      color: white;
+      border-color: #1a56db;
+    }
+
+    .list { padding: 12px 16px; }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      border-left: 4px solid #e2e8f0;
+      transition: transform 0.1s;
+    }
+
+    .card:active { transform: scale(0.98); }
+    .card.status-접수 { border-left-color: #1a56db; }
+    .card.status-완료 { border-left-color: #38a169; opacity: 0.7; }
+    .card.status-취소 { border-left-color: #e53e3e; opacity: 0.5; }
+    .card.new-card { border-left-color: #f6ad55; background: #fffbf0; }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .customer-name { font-size: 17px; font-weight: 700; }
+
+    .status-tag {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 10px;
+    }
+
+    .status-tag.접수 { background: #ebf4ff; color: #1a56db; }
+    .status-tag.완료 { background: #f0fff4; color: #38a169; }
+    .status-tag.취소 { background: #fff5f5; color: #e53e3e; }
+
+    .card-info { font-size: 14px; line-height: 1.8; color: #4a5568; }
+    .card-info span { font-weight: 600; color: #1a202c; }
+
+    .card-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 9px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-complete { background: #c6f6d5; color: #276749; }
+    .btn-cancel { background: #fed7d7; color: #9b2c2c; }
+    .btn-undo { background: #e2e8f0; color: #4a5568; }
+
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: #a0aec0;
+    }
+
+    .empty-icon { font-size: 48px; margin-bottom: 12px; }
+
+    .refresh-info {
+      text-align: center;
+      padding: 12px;
+      font-size: 12px;
+      color: #a0aec0;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #a0aec0;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>위더스환경 접수 관리 <span id="new-badge" class="badge" style="display:none">NEW</span></h1>
+  <p id="last-update">불러오는 중...</p>
+</header>
+
+<div id="new-alert" class="new-alert">🔔 새 접수가 들어왔습니다!</div>
+
+<div class="filter-bar">
+  <button class="filter-btn active" onclick="setFilter('전체')">전체</button>
+  <button class="filter-btn" onclick="setFilter('접수')">접수중</button>
+  <button class="filter-btn" onclick="setFilter('완료')">완료</button>
+  <button class="filter-btn" onclick="setFilter('취소')">취소</button>
+</div>
+
+<div id="list" class="list">
+  <div class="loading">불러오는 중...</div>
+</div>
+
+<div class="refresh-info">30초마다 자동 새로고침</div>
+
+<script>
+  // ▼ 서버 주소 (ngrok 주소로 변경)
+  const SERVER = "https://surfer-relation-makeshift.ngrok-free.dev";
+
+  let allData = [];
+  let currentFilter = '전체';
+  let lastCount = 0;
+  let isFirst = true;
+
+  function setFilter(f) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => {
+      b.classList.toggle('active', b.textContent === f);
+    });
+    render();
+  }
+
+  function render() {
+    const filtered = currentFilter === '전체'
+      ? allData
+      : allData.filter(r => r.status === currentFilter);
+
+    const list = document.getElementById('list');
+
+    if (filtered.length === 0) {
+      list.innerHTML = `
+        <div class="empty">
+          <div class="empty-icon">📋</div>
+          <div>접수 내역이 없습니다</div>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = filtered.map(r => `
+      <div class="card status-${r.status}" id="card-${r.id}">
+        <div class="card-header">
+          <div class="customer-name">${r.customer_name}</div>
+          <div class="status-tag ${r.status}">${r.status}</div>
+        </div>
+        <div class="card-info">
+          📞 <span>${r.phone}</span><br>
+          📍 <span>${r.address}</span><br>
+          📅 <span>${r.date}</span> &nbsp; ⏰ <span>${r.time}</span><br>
+          🌀 에어컨 <span>${r.unit_count}대</span>
+          ${r.memo ? `<br>📝 <span>${r.memo}</span>` : ''}
+        </div>
+        <div class="card-actions">
+          ${r.status === '접수' ? `
+            <button class="btn btn-complete" onclick="updateStatus(${r.id}, '완료')">✅ 완료</button>
+            <button class="btn btn-cancel" onclick="updateStatus(${r.id}, '취소')">❌ 취소</button>
+          ` : `
+            <button class="btn btn-undo" onclick="updateStatus(${r.id}, '접수')">↩️ 접수로 되돌리기</button>
+          `}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function load() {
+    try {
+      const res = await fetch(SERVER + '/requests', {
+        headers: { 'ngrok-skip-browser-warning': '1' }
+      });
+      const data = await res.json();
+      allData = data.reverse();
+
+      const newCount = allData.filter(r => r.status === '접수').length;
+
+      if (!isFirst && newCount > lastCount) {
+        document.getElementById('new-alert').style.display = 'block';
+        document.getElementById('new-badge').style.display = 'inline';
+        setTimeout(() => {
+          document.getElementById('new-alert').style.display = 'none';
+        }, 5000);
+        if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);
+      } else {
+        document.getElementById('new-badge').style.display = 'none';
+      }
+
+      lastCount = newCount;
+      isFirst = false;
+
+      const now = new Date().toLocaleTimeString('ko-KR');
+      document.getElementById('last-update').textContent = `마지막 업데이트: ${now}`;
+      render();
+    } catch (e) {
+      document.getElementById('last-update').textContent = '서버 연결 실패 - 재시도 중...';
+    }
+  }
+
+  async function updateStatus(id, status) {
+    try {
+      await fetch(`${SERVER}/requests/${id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': '1'
+        },
+        body: JSON.stringify({ status })
+      });
+      await load();
+    } catch (e) {
+      alert('상태 변경 실패. 서버 연결을 확인해주세요.');
+    }
+  }
+
+  load();
+  setInterval(load, 30000);
+</script>
+
+</body>
+</html>
