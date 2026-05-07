@@ -182,7 +182,7 @@
 <div class="filter-bar">
   <button class="filter-btn active" onclick="setFilter('전체')">전체</button>
   <button class="filter-btn" onclick="setFilter('접수')">접수중</button>
-  <button class="filter-btn" onclick="setFilter('완료')">완료</button>
+  <button class="filter-btn" data-filter="완료" onclick="setFilter('완료')">작업완료</button>
   <button class="filter-btn" onclick="setFilter('취소')">취소</button>
 </div>
 
@@ -204,7 +204,8 @@
   function setFilter(f) {
     currentFilter = f;
     document.querySelectorAll('.filter-btn').forEach(b => {
-      b.classList.toggle('active', b.textContent === f);
+      const val = b.dataset.filter || b.textContent;
+      b.classList.toggle('active', val === f);
     });
     render();
   }
@@ -229,7 +230,7 @@
       <div class="card status-${r.status}" id="card-${r.id}">
         <div class="card-header">
           <div class="customer-name">${r.customer_name}</div>
-          <div class="status-tag ${r.status}">${r.status}</div>
+          <div class="status-tag ${r.status}">${r.status === '완료' ? '작업완료' : r.status}</div>
         </div>
         <div class="card-info">
           📞 <span>${r.phone}</span><br>
@@ -240,11 +241,11 @@
         </div>
         <div class="card-actions">
           <a class="btn btn-call" href="tel:${r.phone}">📞 전화</a>
-          <a class="btn btn-sms" href="sms:${r.phone}?body=${encodeURIComponent(`안녕하세요 ${r.customer_name}님, 위더스환경입니다.\n${r.date} ${r.time} 에어컨 청소 ${r.status === '완료' ? '작업이 완료되었습니다. 이용해 주셔서 감사합니다!' : '예약이 확인되었습니다. 방문 예정일에 연락드리겠습니다.'}`)}" >💬 문자</a>
+          <a class="btn btn-sms" href="sms:${r.phone}?body=${encodeURIComponent(`안녕하세요 ${r.customer_name}님, 위더스환경입니다.\n${r.date} ${r.time} 에어컨 청소 ${r.status === '완료' ? '작업이 완료되었습니다. 이용해 주셔서 감사합니다!' : '예약이 확인되었습니다. 방문 예정일에 연락드리겠습니다.'}`)}" >💬 접수문자</a>
         </div>
         <div class="card-actions" style="margin-top:6px">
           ${r.status === '접수' ? `
-            <button class="btn btn-complete" onclick="updateStatus(${r.id}, '완료')">✅ 완료</button>
+            <button class="btn btn-complete" onclick="completeWithSMS(${r.id}, '${r.phone}', '${r.customer_name}', '${r.date}', '${r.time}')">✅ 작업완료</button>
             <button class="btn btn-cancel" onclick="updateStatus(${r.id}, '취소')">❌ 취소</button>
           ` : `
             <button class="btn btn-undo" onclick="updateStatus(${r.id}, '접수')">↩️ 되돌리기</button>
@@ -311,6 +312,24 @@
         body: JSON.stringify({ status })
       });
       await load();
+    } catch (e) {
+      alert('상태 변경 실패. 서버 연결을 확인해주세요.');
+    }
+  }
+
+  async function completeWithSMS(id, phone, name, date, time) {
+    try {
+      await fetch(`${SERVER}/requests/${id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': '1'
+        },
+        body: JSON.stringify({ status: '완료' })
+      });
+      await load();
+      const msg = `안녕하세요 ${name}님, 위더스환경입니다.\n${date} ${time} 에어컨 청소 작업이 완료되었습니다. 이용해 주셔서 감사합니다!`;
+      window.location.href = `sms:${phone}?body=${encodeURIComponent(msg)}`;
     } catch (e) {
       alert('상태 변경 실패. 서버 연결을 확인해주세요.');
     }
