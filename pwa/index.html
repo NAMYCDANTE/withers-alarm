@@ -1,247 +1,400 @@
-  <!DOCTYPE html>                                                                                                  
-  <html lang="ko">                                                                                                 
-  <head>                                                                                                           
-    <meta charset="UTF-8">                                                                                         
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">                      
-    <meta name="apple-mobile-web-app-capable" content="yes">                                                       
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">                                
-    <meta name="apple-mobile-web-app-title" content="위더스환경">                                                  
-    <title>위더스환경 접수 관리</title>                                                                            
-    <link rel="manifest" href="manifest.json">                                                                     
-    <style>                                                                                                        
-      * { box-sizing: border-box; margin: 0; padding: 0; }                                                         
-      body { font-family: -apple-system, sans-serif; background: #f0f4f8; color: #1a202c; }                        
-      header { background: linear-gradient(135deg, #1a56db, #0e3fa0); color: white; padding: 20px 16px 16px;       
-  position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }                                 
-      header h1 { font-size: 18px; font-weight: 700; }                                                             
-      header p { font-size: 12px; opacity: 0.8; margin-top: 2px; }                                                 
-      .badge { display: inline-block; background: #f56565; color: white; border-radius: 12px; padding: 2px 8px;    
-  font-size: 12px; font-weight: 700; margin-left: 8px; animation: pulse 1.5s infinite; }                           
-      @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }                                          
-      .new-alert { background: #c6f6d5; border-left: 4px solid #38a169; padding: 12px 16px; font-size: 14px;       
-  font-weight: 600; color: #276749; display: none; }                                                               
-      .filter-bar { display: flex; gap: 8px; padding: 12px 16px; overflow-x: auto; background: white;
-  border-bottom: 1px solid #e2e8f0; }                                                                              
-      .filter-btn { padding: 6px 14px; border-radius: 20px; border: 1.5px solid #e2e8f0; background: white;
-  font-size: 13px; cursor: pointer; white-space: nowrap; font-weight: 500; }                                       
-      .filter-btn.active { background: #1a56db; color: white; border-color: #1a56db; }
-      .list { padding: 12px 16px; }                                                                                
-      .card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px
-  rgba(0,0,0,0.08); border-left: 4px solid #e2e8f0; transition: transform 0.1s; }                                  
-      .card:active { transform: scale(0.98); }
-      .card.status-접수 { border-left-color: #1a56db; }                                                            
-      .card.status-완료 { border-left-color: #38a169; opacity: 0.7; }                                              
-      .card.status-취소 { border-left-color: #e53e3e; opacity: 0.5; }
-      .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-      .customer-name { font-size: 17px; font-weight: 700; }                                                        
-      .status-tag { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 10px; }                   
-      .status-tag.접수 { background: #ebf4ff; color: #1a56db; }                                                    
-      .status-tag.완료 { background: #f0fff4; color: #38a169; }                                                    
-      .status-tag.취소 { background: #fff5f5; color: #e53e3e; }                                                    
-      .card-info { font-size: 14px; line-height: 1.8; color: #4a5568; }                                            
-      .card-info span { font-weight: 600; color: #1a202c; }                                                        
-      .card-actions { display: flex; gap: 8px; margin-top: 12px; }                                                 
-      .btn { flex: 1; padding: 9px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor:   
-  pointer; }                                                                                                       
-      .btn-complete { background: #c6f6d5; color: #276749; }                                                       
-      .btn-cancel { background: #fed7d7; color: #9b2c2c; }                                                         
-      .btn-undo { background: #e2e8f0; color: #4a5568; }                                                           
-      .btn-call { background: #ebf4ff; color: #1a56db; text-decoration: none; text-align: center; }                
-      .btn-sms { background: #faf5ff; color: #6b46c1; text-decoration: none; text-align: center; }                 
-      .btn-delete { background: #fff5f5; color: #c53030; }                                                         
-      .btn-calendar { background: #e6fffa; color: #234e52; text-align: center; }                                   
-      .empty { text-align: center; padding: 60px 20px; color: #a0aec0; }                                           
-      .empty-icon { font-size: 48px; margin-bottom: 12px; }                                                        
-      .refresh-info { text-align: center; padding: 12px; font-size: 12px; color: #a0aec0; }                        
-      .loading { text-align: center; padding: 40px; color: #a0aec0; font-size: 14px; }                             
-    </style>                                                                                                       
-  </head>                                                                                                          
-  <body>                                                                                                           
-                  
-  <header>
-    <h1>위더스환경 접수 관리 <span id="new-badge" class="badge" style="display:none">NEW</span></h1>
-    <p id="last-update">불러오는 중...</p>                                                                         
-  </header>                                                                                                        
-  <div id="new-alert" class="new-alert">🔔 새 접수가 들어왔습니다!</div>                                           
-  <div class="filter-bar">                                                                                         
-    <button class="filter-btn active" onclick="setFilter('전체')">전체</button>
-    <button class="filter-btn" onclick="setFilter('접수')">접수중</button>                                         
-    <button class="filter-btn" data-filter="완료" onclick="setFilter('완료')">작업완료</button>
-    <button class="filter-btn" onclick="setFilter('취소')">취소</button>                                           
-  </div>                                                                                                           
-  <div id="list" class="list"><div class="loading">불러오는 중...</div></div>                                      
-  <div class="refresh-info">30초마다 자동 새로고침</div>                                                           
-                                                                                                                   
-  <script>
-    var SERVER = "https://withers-alarm-production.up.railway.app";                                                
-    var allData = [];                                                                                              
-    var currentFilter = '전체';
-    var lastCount = 0;                                                                                             
-    var isFirst = true;
-
-    function makeSmsMsg(r, done) {                                                                                 
-      var m = '안녕하세요 ' + r.customer_name + '님, 위더스환경입니다.\n';
-      m += r.date + ' ' + r.time + ' 에어컨 청소 ';                                                                
-      if (done) { 
-        m += '작업이 완료되었습니다. 감사합니다!';                                                                 
-      } else {                                                                                                     
-        m += '예약이 확인되었습니다. 방문 예정일에 연락드리겠습니다.';
-      }                                                                                                            
-      return m;   
-    }                                                                                                              
-                  
-    function getSmsUrl(r) {
-      var done = r.status === '완료';
-      return 'sms:' + r.phone + '?body=' + encodeURIComponent(makeSmsMsg(r, done));                                
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="위더스환경">
+  <title>위더스환경 접수 관리</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
     }
-                                                                                                                   
-    function setFilter(f) {                                                                                        
-      currentFilter = f;
-      document.querySelectorAll('.filter-btn').forEach(function(b) {                                               
-        var val = b.dataset.filter || b.textContent;
-        b.classList.toggle('active', val === f);                                                                   
-      });
-      render();                                                                                                    
-    }             
-
-    function makeCard(r) {                                                                                         
-      var ac = r.ac_info || ('에어컨 ' + r.unit_count + '대');
-      var label = r.status === '완료' ? '작업완료' : r.status;                                                     
-      var memo = r.memo ? '<br>📝 <span>' + r.memo + '</span>' : '';                                               
-      var btns = r.status === '접수'                                                                               
-        ? '<button class="btn btn-complete" onclick="completeWithSMS(' + r.id + ')">✅ 작업완료</button>'          
-          + '<button class="btn btn-cancel" onclick="updateStatus(' + r.id + ',\'취소\')">❌ 취소</button>'        
-        : '<button class="btn btn-undo" onclick="updateStatus(' + r.id + ',\'접수\')">↩️  되돌리기</button>';       
-                                                                                                                   
-      var h = '<div class="card status-' + r.status + '" id="card-' + r.id + '">';                                 
-      h += '<div class="card-header">';                                                                            
-      h += '<div class="customer-name">' + r.customer_name + '</div>';                                             
-      h += '<div class="status-tag ' + r.status + '">' + label + '</div>';
-      h += '</div>';                                                                                               
-      h += '<div class="card-info">';
-      h += '📞 <span>' + r.phone + '</span><br>';                                                                  
-      h += '📍 <span>' + r.address + '</span><br>';                                                                
-      h += '📅 <span>' + r.date + '</span> &nbsp; ⏰ <span>' + r.time + '</span><br>';                             
-      h += '🌀 <span>' + ac + '</span>' + memo;                                                                    
-      h += '</div>';                                                                                               
-      h += '<div class="card-actions">';                                                                           
-      h += '<a class="btn btn-call" href="tel:' + r.phone + '">📞 전화</a>';                                       
-      h += '<a class="btn btn-sms" href="' + getSmsUrl(r) + '">💬 접수문자</a>';
-      h += '<button class="btn btn-calendar" onclick="openCalendar(' + r.id + ')">📅 캘린더</button>';             
-      h += '</div>';                                                                                               
-      h += '<div class="card-actions" style="margin-top:6px">';                                                    
-      h += btns;                                                                                                   
-      h += '<button class="btn btn-delete" onclick="delReq(' + r.id + ',\'' + r.customer_name + '\')">🗑️  
-  삭제</button>';                                                                                                  
-      h += '</div></div>';
-      return h;                                                                                                    
-    }             
-                                                                                                                   
-    function render() {
-      var filtered = currentFilter === '전체' ? allData : allData.filter(function(r) { return r.status ===
-  currentFilter; });                                                                                               
-      var list = document.getElementById('list');
-      if (filtered.length === 0) {                                                                                 
-        list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div>접수 내역이 
-  없습니다</div></div>';                                                                                           
-        return;
-      }                                                                                                            
-      list.innerHTML = filtered.map(makeCard).join('');
-    }                                                                                                              
-  
-    async function load() {                                                                                        
-      try {       
-        var res = await fetch(SERVER + '/requests', { headers: { 'ngrok-skip-browser-warning': '1' } });
-        var data = await res.json();                                                                               
-        allData = data.reverse();
-        var newCount = allData.filter(function(r) { return r.status === '접수'; }).length;                         
-        if (!isFirst && newCount > lastCount) {                                                                    
-          document.getElementById('new-alert').style.display = 'block';                                            
-          document.getElementById('new-badge').style.display = 'inline';                                           
-          setTimeout(function() { document.getElementById('new-alert').style.display = 'none'; }, 5000);           
-          if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);                                          
-        } else {                                                                                                   
-          document.getElementById('new-badge').style.display = 'none';                                             
-        }                                                                                                          
-        lastCount = newCount;
-        isFirst = false;                                                                                           
-        document.getElementById('last-update').textContent = '마지막 업데이트: ' + new
-  Date().toLocaleTimeString('ko-KR');                                                                              
-        render();
-      } catch (e) {                                                                                                
-        document.getElementById('last-update').textContent = '서버 연결 실패 - 재시도 중...';
-      }                                                                                                            
+    header {
+      background: linear-gradient(135deg, #1a56db, #0e3fa0);
+      color: white;
+      padding: 20px 16px 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
-                                                                                                                   
-    async function delReq(id, name) {                                                                              
-      if (!confirm(name + ' 접수를 삭제할까요?')) return;
-      try {                                                                                                        
-        await fetch(SERVER + '/requests/' + id, { method: 'DELETE', headers: { 'ngrok-skip-browser-warning': '1' }
-  });                                                                                                              
-        await load();
-      } catch (e) { alert('삭제 실패.'); }                                                                         
-    }                                                                                                              
-  
-    async function updateStatus(id, status) {                                                                      
-      try {       
-        await fetch(SERVER + '/requests/' + id + '/status', {
-          method: 'PATCH',                                                                                         
-          headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
-          body: JSON.stringify({ status: status })                                                                 
-        });                                                                                                        
-        await load();
-      } catch (e) { alert('상태 변경 실패.'); }                                                                    
-    }             
-
-    async function completeWithSMS(id) {                                                                           
-      var r = allData.find(function(x) { return x.id === id; });
-      if (!r) return;                                                                                              
-      try {       
-        await fetch(SERVER + '/requests/' + id + '/status', {
-          method: 'PATCH',                                                                                         
-          headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
-          body: JSON.stringify({ status: '완료' })                                                                 
-        });                                                                                                        
-        await load();
-        var msg = makeSmsMsg(r, true);                                                                             
-        window.location.href = 'sms:' + r.phone + '?body=' + encodeURIComponent(msg);
-      } catch (e) { alert('상태 변경 실패.'); }                                                                    
+    header h1 { font-size: 18px; font-weight: 700; }
+    header p { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+    .badge {
+      display: inline-block;
+      background: #f56565;
+      color: white;
+      border-radius: 12px;
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-left: 8px;
+      animation: pulse 1.5s infinite;
     }
-                                                                                                                   
-    function openCalendar(id) {                                                                                    
-      var r = allData.find(function(x) { return x.id === id; });
-      if (!r) return;                                                                                              
-      var ds = r.date.toString().trim();
-      var dm = ds.match(/(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);                                                
-      if (!dm) { alert('날짜 오류'); return; }                                                                     
-      var y = dm[1];                                                                                               
-      var mo = dm[2].padStart(2, '0');                                                                             
-      var d = dm[3].padStart(2, '0');                                                                              
-      var h = 9;  
-      var tm = r.time.match(/(오전|오후)\s*(\d{1,2})시/);                                                          
-      if (tm) {                                                                                                    
-        h = parseInt(tm[2]);
-        if (tm[1] === '오후' && h !== 12) h += 12;                                                                 
-        if (tm[1] === '오전' && h === 12) h = 0;                                                                   
-      }
-      var eh = h + 2;                                                                                              
-      var pad = function(n) { return String(n).padStart(2, '0'); };
-      var s = y + mo + d + 'T' + pad(h) + '0000';                                                                  
-      var e = y + mo + d + 'T' + pad(eh) + '0000';                                                                 
-      var title = '에어컨 청소 - ' + r.customer_name;                                                              
-      var det = '고객명: ' + r.customer_name;                                                                      
-      det += '\n연락처: ' + r.phone;                                                                               
-      det += '\n에어컨: ' + (r.ac_info || r.unit_count + '대');                                                    
-      var url = 'https://calendar.google.com/calendar/render?action=TEMPLATE';                                     
-      url += '&text=' + encodeURIComponent(title);                                                                 
-      url += '&dates=' + s + '/' + e;                                                                              
-      url += '&details=' + encodeURIComponent(det);                                                                
-      url += '&location=' + encodeURIComponent(r.address);                                                         
-      location.href = url;
-    }                                                                                                              
-                  
-    load();
-    setInterval(load, 30000);
-  </script>                                                                                                        
-  </body>
-  </html>                                                                                                          
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .new-alert {
+      background: #c6f6d5;
+      border-left: 4px solid #38a169;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #276749;
+      display: none;
+    }
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      padding: 12px 16px;
+      overflow-x: auto;
+      background: white;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .filter-btn {
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1.5px solid #e2e8f0;
+      background: white;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+      font-weight: 500;
+    }
+    .filter-btn.active {
+      background: #1a56db;
+      color: white;
+      border-color: #1a56db;
+    }
+    .list { padding: 12px 16px; }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      border-left: 4px solid #e2e8f0;
+      transition: transform 0.1s;
+    }
+    .card:active { transform: scale(0.98); }
+    .card.status-접수 { border-left-color: #1a56db; }
+    .card.status-완료 { border-left-color: #38a169; opacity: 0.7; }
+    .card.status-취소 { border-left-color: #e53e3e; opacity: 0.5; }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+    .customer-name { font-size: 17px; font-weight: 700; }
+    .status-tag {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 10px;
+    }
+    .status-tag.접수 { background: #ebf4ff; color: #1a56db; }
+    .status-tag.완료 { background: #f0fff4; color: #38a169; }
+    .status-tag.취소 { background: #fff5f5; color: #e53e3e; }
+    .card-info { font-size: 14px; line-height: 1.8; color: #4a5568; }
+    .card-info span { font-weight: 600; color: #1a202c; }
+    .card-actions { display: flex; gap: 8px; margin-top: 12px; }
+    .btn {
+      flex: 1;
+      padding: 9px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-complete { background: #c6f6d5; color: #276749; }
+    .btn-cancel { background: #fed7d7; color: #9b2c2c; }
+    .btn-undo { background: #e2e8f0; color: #4a5568; }
+    .btn-call {
+      background: #ebf4ff;
+      color: #1a56db;
+      text-decoration: none;
+      text-align: center;
+    }
+    .btn-sms {
+      background: #faf5ff;
+      color: #6b46c1;
+      text-decoration: none;
+      text-align: center;
+    }
+    .btn-delete { background: #fff5f5; color: #c53030; }
+    .btn-calendar { background: #e6fffa; color: #234e52; }
+    .empty { text-align: center; padding: 60px 20px; color: #a0aec0; }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; }
+    .refresh-info {
+      text-align: center;
+      padding: 12px;
+      font-size: 12px;
+      color: #a0aec0;
+    }
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #a0aec0;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>위더스환경 접수 관리
+    <span id="new-badge" class="badge" style="display:none">NEW</span>
+  </h1>
+  <p id="last-update">불러오는 중...</p>
+</header>
+
+<div id="new-alert" class="new-alert">
+  🔔 새 접수가 들어왔습니다!
+</div>
+
+<div class="filter-bar">
+  <button class="filter-btn active" onclick="setFilter('전체')">전체</button>
+  <button class="filter-btn" onclick="setFilter('접수')">접수중</button>
+  <button class="filter-btn" data-filter="완료" onclick="setFilter('완료')">작업완료</button>
+  <button class="filter-btn" onclick="setFilter('취소')">취소</button>
+</div>
+
+<div id="list" class="list">
+  <div class="loading">불러오는 중...</div>
+</div>
+
+<div class="refresh-info">30초마다 자동 새로고침</div>
+
+<script>
+var SERVER = "https://withers-alarm-production.up.railway.app";
+var allData = [];
+var currentFilter = '전체';
+var lastCount = 0;
+var isFirst = true;
+
+function makeSmsMsg(r, done) {
+  var m = '안녕하세요 ' + r.customer_name + '님, ';
+  m += '위더스환경입니다.\n';
+  m += r.date + ' ' + r.time + ' 에어컨 청소 ';
+  if (done) {
+    m += '작업이 완료되었습니다.';
+    m += ' 감사합니다!';
+  } else {
+    m += '예약이 확인되었습니다.';
+    m += ' 방문 예정일에 연락드리겠습니다.';
+  }
+  return m;
+}
+
+function getSmsUrl(r) {
+  var done = r.status === '완료';
+  var msg = makeSmsMsg(r, done);
+  return 'sms:' + r.phone + '?body=' + encodeURIComponent(msg);
+}
+
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(function(b) {
+    var val = b.dataset.filter || b.textContent;
+    b.classList.toggle('active', val === f);
+  });
+  render();
+}
+
+function makeCard(r) {
+  var ac = r.ac_info || ('에어컨 ' + r.unit_count + '대');
+  var label = r.status === '완료' ? '작업완료' : r.status;
+  var memo = r.memo ? '<br>📝 <span>' + r.memo + '</span>' : '';
+
+  var completeBtn = '<button class="btn btn-complete"';
+  completeBtn += ' onclick="completeWithSMS(' + r.id + ')">';
+  completeBtn += '✅ 작업완료</button>';
+
+  var cancelBtn = '<button class="btn btn-cancel"';
+  cancelBtn += ' onclick="updateStatus(' + r.id + ',\'취소\')">';
+  cancelBtn += '❌ 취소</button>';
+
+  var undoBtn = '<button class="btn btn-undo"';
+  undoBtn += ' onclick="updateStatus(' + r.id + ',\'접수\')">';
+  undoBtn += '↩️ 되돌리기</button>';
+
+  var deleteBtn = '<button class="btn btn-delete"';
+  deleteBtn += ' onclick="delReq(' + r.id + ')">';
+  deleteBtn += '🗑️ 삭제</button>';
+
+  var calBtn = '<button class="btn btn-calendar"';
+  calBtn += ' onclick="openCalendar(' + r.id + ')">';
+  calBtn += '📅 캘린더</button>';
+
+  var callBtn = '<a class="btn btn-call" href="tel:' + r.phone + '">';
+  callBtn += '📞 전화</a>';
+
+  var smsBtn = '<a class="btn btn-sms" href="' + getSmsUrl(r) + '">';
+  smsBtn += '💬 접수문자</a>';
+
+  var actionBtns = r.status === '접수'
+    ? completeBtn + cancelBtn
+    : undoBtn;
+
+  var h = '<div class="card status-' + r.status + '" id="card-' + r.id + '">';
+  h += '<div class="card-header">';
+  h += '<div class="customer-name">' + r.customer_name + '</div>';
+  h += '<div class="status-tag ' + r.status + '">' + label + '</div>';
+  h += '</div>';
+  h += '<div class="card-info">';
+  h += '📞 <span>' + r.phone + '</span><br>';
+  h += '📍 <span>' + r.address + '</span><br>';
+  h += '📅 <span>' + r.date + '</span>';
+  h += ' &nbsp; ⏰ <span>' + r.time + '</span><br>';
+  h += '🌀 <span>' + ac + '</span>' + memo;
+  h += '</div>';
+  h += '<div class="card-actions">';
+  h += callBtn + smsBtn + calBtn;
+  h += '</div>';
+  h += '<div class="card-actions" style="margin-top:6px">';
+  h += actionBtns + deleteBtn;
+  h += '</div></div>';
+  return h;
+}
+
+function render() {
+  var filtered;
+  if (currentFilter === '전체') {
+    filtered = allData;
+  } else {
+    filtered = allData.filter(function(r) {
+      return r.status === currentFilter;
+    });
+  }
+  var list = document.getElementById('list');
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty">'
+      + '<div class="empty-icon">📋</div>'
+      + '<div>접수 내역이 없습니다</div>'
+      + '</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(makeCard).join('');
+}
+
+async function load() {
+  try {
+    var res = await fetch(SERVER + '/requests', {
+      headers: { 'ngrok-skip-browser-warning': '1' }
+    });
+    var data = await res.json();
+    allData = data.reverse();
+    var newCount = allData.filter(function(r) {
+      return r.status === '접수';
+    }).length;
+    if (!isFirst && newCount > lastCount) {
+      document.getElementById('new-alert').style.display = 'block';
+      document.getElementById('new-badge').style.display = 'inline';
+      setTimeout(function() {
+        document.getElementById('new-alert').style.display = 'none';
+      }, 5000);
+      if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);
+    } else {
+      document.getElementById('new-badge').style.display = 'none';
+    }
+    lastCount = newCount;
+    isFirst = false;
+    var t = new Date().toLocaleTimeString('ko-KR');
+    document.getElementById('last-update').textContent = '마지막 업데이트: ' + t;
+    render();
+  } catch (e) {
+    document.getElementById('last-update').textContent = '서버 연결 실패 - 재시도 중...';
+  }
+}
+
+async function delReq(id) {
+  var r = allData.find(function(x) { return x.id === id; });
+  var name = r ? r.customer_name : '이 항목';
+  if (!confirm(name + ' 접수를 삭제할까요?')) return;
+  try {
+    await fetch(SERVER + '/requests/' + id, {
+      method: 'DELETE',
+      headers: { 'ngrok-skip-browser-warning': '1' }
+    });
+    await load();
+  } catch (e) { alert('삭제 실패.'); }
+}
+
+async function updateStatus(id, status) {
+  try {
+    await fetch(SERVER + '/requests/' + id + '/status', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': '1'
+      },
+      body: JSON.stringify({ status: status })
+    });
+    await load();
+  } catch (e) { alert('상태 변경 실패.'); }
+}
+
+async function completeWithSMS(id) {
+  var r = allData.find(function(x) { return x.id === id; });
+  if (!r) return;
+  try {
+    await fetch(SERVER + '/requests/' + id + '/status', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': '1'
+      },
+      body: JSON.stringify({ status: '완료' })
+    });
+    await load();
+    var msg = makeSmsMsg(r, true);
+    window.location.href = 'sms:' + r.phone + '?body=' + encodeURIComponent(msg);
+  } catch (e) { alert('상태 변경 실패.'); }
+}
+
+function openCalendar(id) {
+  var r = allData.find(function(x) { return x.id === id; });
+  if (!r) return;
+  var ds = r.date.toString().trim();
+  var dm = ds.match(/(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);
+  if (!dm) { alert('날짜 오류'); return; }
+  var y = dm[1];
+  var mo = dm[2].padStart(2, '0');
+  var d = dm[3].padStart(2, '0');
+  var h = 9;
+  var tm = r.time.match(/(오전|오후)\s*(\d{1,2})시/);
+  if (tm) {
+    h = parseInt(tm[2]);
+    if (tm[1] === '오후' && h !== 12) h += 12;
+    if (tm[1] === '오전' && h === 12) h = 0;
+  }
+  var eh = h + 2;
+  var pad = function(n) { return String(n).padStart(2, '0'); };
+  var s = y + mo + d + 'T' + pad(h) + '0000';
+  var e = y + mo + d + 'T' + pad(eh) + '0000';
+  var title = '에어컨 청소 - ' + r.customer_name;
+  var det = '고객명: ' + r.customer_name + '\n';
+  det += '연락처: ' + r.phone + '\n';
+  det += '에어컨: ' + (r.ac_info || r.unit_count + '대');
+  var url = 'https://calendar.google.com/calendar/render?action=TEMPLATE';
+  url += '&text=' + encodeURIComponent(title);
+  url += '&dates=' + s + '/' + e;
+  url += '&details=' + encodeURIComponent(det);
+  url += '&location=' + encodeURIComponent(r.address);
+  location.href = url;
+}
+
+load();
+setInterval(load, 30000);
+</script>
+</body>
+</html>
