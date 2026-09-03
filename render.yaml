@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: withers-alarm
+    env: node
+    buildCommand: npm install
+    startCommand: node --experimental-sqlite server.js
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: KAKAO_ACCESS_TOKEN
+        value: 여기에_입력
