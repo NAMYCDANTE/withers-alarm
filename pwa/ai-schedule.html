@@ -24,6 +24,11 @@
   --bad: #b42318;
   --bad-soft: #fde2de;
   --block: #9fb6c4;
+  --grid: #e7eef2;
+  --c-ac: #d3ecf4;
+  --c-ac-ink: #074b5e;
+  --c-home: #f7e2c6;
+  --c-home-ink: #774100;
   --font: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
@@ -32,14 +37,14 @@
     --bg: #0d1418; --surface: #152027; --surface-2: #1c2a32; --line: #2a3b45;
     --fg: #e5eef3; --muted: #92a4b0; --accent: #4fb9d5; --accent-ink: #05252f; --accent-soft: #123540;
     --ok: #5fcb8f; --ok-soft: #133426; --warn: #e9ab4f; --warn-soft: #3a2a12; --bad: #f2806f; --bad-soft: #3e1b17;
-    --block: #4b6676; color-scheme: dark;
+    --block: #4b6676; --grid: #1e2b33; --c-ac: #123d49; --c-ac-ink: #a3deee; --c-home: #3e2c15; --c-home-ink: #f1c584; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0d1418; --surface: #152027; --surface-2: #1c2a32; --line: #2a3b45;
   --fg: #e5eef3; --muted: #92a4b0; --accent: #4fb9d5; --accent-ink: #05252f; --accent-soft: #123540;
   --ok: #5fcb8f; --ok-soft: #133426; --warn: #e9ab4f; --warn-soft: #3a2a12; --bad: #f2806f; --bad-soft: #3e1b17;
-  --block: #4b6676; color-scheme: dark;
+  --block: #4b6676; --grid: #1e2b33; --c-ac: #123d49; --c-ac-ink: #a3deee; --c-home: #3e2c15; --c-home-ink: #f1c584; color-scheme: dark;
 }
 * { box-sizing: border-box; }
 body { background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; line-height: 1.55; -webkit-text-size-adjust: 100%; }
@@ -108,18 +113,36 @@ main { max-width: 560px; margin: 0 auto; padding-block: 16px 40px; padding-left:
 .conflict-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .conflict-list li { font-size: 14px; background: var(--bad-soft); border-radius: 8px; padding: 8px 10px; }
 
-/* timeline */
-.tl-wrap { display: flex; flex-direction: column; gap: 4px; }
-.tl { position: relative; height: 30px; background: var(--surface-2); border-radius: 6px; overflow: hidden; }
-.tl-grid { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line); }
-.tl-block { position: absolute; top: 4px; bottom: 4px; border-radius: 4px; background: var(--block); }
-.tl-new { position: absolute; top: 2px; bottom: 2px; border-radius: 5px; border: 2px dashed var(--ok); background: color-mix(in srgb, var(--ok) 22%, transparent); }
-.tl-new.bad { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 22%, transparent); }
-.tl-ticks { position: relative; height: 16px; font-size: 11px; color: var(--muted); }
-.tl-ticks span { position: absolute; transform: translateX(-50%); font-family: var(--mono); }
-.tl-ticks span:first-child { transform: none; }
-.tl-ticks span:last-child { transform: translateX(-100%); }
-.legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+/* week calendar */
+.wk { --hr: 44px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.wk-head, .wk-body { display: grid; }
+.wk-head { border-bottom: 1px solid var(--line); }
+.wk-dh { text-align: center; padding: 6px 0 4px; font-size: 12px; color: var(--muted); min-width: 0; }
+.wk-dh b { display: block; width: 28px; height: 28px; line-height: 28px; margin: 1px auto 0; border-radius: 999px; font-family: var(--mono); font-size: 15px; font-weight: 600; color: var(--fg); }
+.wk-dh.is-today b { background: var(--accent); color: var(--accent-ink); }
+.wk-dh.is-past { opacity: .55; }
+.wk-n { display: block; font-size: 10px; font-weight: 600; color: var(--accent); }
+.wk-body { padding-top: 6px; padding-bottom: 6px; }
+.wk-axis { position: relative; height: calc(var(--hr) * 11); }
+.wk-axis span { position: absolute; right: 4px; transform: translateY(-50%); font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.wk-col { position: relative; height: calc(var(--hr) * 11); border-left: 1px solid var(--line); min-width: 0;
+  background-image: repeating-linear-gradient(to bottom, var(--grid) 0, var(--grid) 1px, transparent 1px, transparent var(--hr)); }
+.wk-col.is-past, .wk-col.is-off { background-color: var(--surface-2); }
+.wk-col.pickable { cursor: pointer; }
+.ev { position: absolute; left: 2px; right: 2px; z-index: 1; display: flex; flex-direction: column; gap: 0; overflow: hidden; text-align: left;
+  border: 0; border-left: 3px solid var(--accent); border-radius: 5px; padding: 2px 2px 2px 3px; font-size: 11px; letter-spacing: -0.02em; line-height: 1.25;
+  background: var(--c-ac); color: var(--c-ac-ink); }
+.ev.home { background: var(--c-home); color: var(--c-home-ink); border-left-color: var(--c-home-ink); }
+.ev-t { font-family: var(--mono); font-size: 10px; opacity: .85; }
+.ev-n { font-weight: 700; white-space: nowrap; overflow: hidden; }
+.ev-l { overflow: hidden; word-break: keep-all; }
+.sheet .wk { margin: 0 -14px; border-radius: 0; border-left: 0; border-right: 0; }
+.ev.is-sel { box-shadow: 0 0 0 2px var(--fg); }
+.ev.hit { box-shadow: 0 0 0 2px var(--bad); }
+.ev.prop { z-index: 2; pointer-events: none; border: 2px dashed var(--ok); background: color-mix(in srgb, var(--ok) 20%, var(--surface)); color: var(--ok); }
+.ev.prop.bad { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 18%, var(--surface)); color: var(--bad); }
+.wk-now { position: absolute; left: 0; right: 0; height: 2px; background: var(--bad); z-index: 3; pointer-events: none; }
+.legend { display: flex; gap: 6px 14px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
 .legend i { display: inline-block; width: 12px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
 
 .alts { display: flex; flex-direction: column; gap: 8px; }
@@ -139,27 +162,23 @@ main { max-width: 560px; margin: 0 auto; padding-block: 16px 40px; padding-left:
 .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
 .stat b { display: block; font-family: var(--mono); font-size: 22px; font-weight: 600; }
 .stat span { font-size: 12px; color: var(--muted); }
-.days { display: flex; flex-direction: column; gap: 12px; }
-.day { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
-.day.sunday { opacity: .6; }
-.day-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.day-name { font-weight: 700; }
-.day-name small { font-weight: 500; color: var(--muted); margin-left: 6px; font-size: 12px; }
-.day-load { font-size: 12px; color: var(--muted); }
-.jobs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.job { display: grid; grid-template-columns: 92px 1fr auto; gap: 10px; align-items: start; font-size: 14px; }
-.job-time { font-family: var(--mono); font-size: 13px; color: var(--accent); padding-top: 1px; }
-.job-main { min-width: 0; }
-.job-who { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
-.job-del { border: 0; background: transparent; color: var(--muted); font-size: 12px; padding: 2px 4px; border-radius: 6px; }
-.job-del.armed { color: var(--bad); background: var(--bad-soft); font-weight: 600; }
-.free { font-size: 13px; color: var(--muted); }
+/* schedule tab */
+.wk-nav { display: flex; align-items: center; gap: 8px; }
+.wk-range { flex: 1; text-align: center; font-weight: 700; font-size: 16px; }
+.wk-range small { display: block; font-size: 12px; font-weight: 500; color: var(--muted); }
+.wk-btn { flex: none; width: 44px; height: 40px; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; font-size: 20px; line-height: 1; }
+.detail { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.detail-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.detail-when { font-weight: 700; }
+.job-who { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.job-del { border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 13px; padding: 5px 10px; border-radius: 8px; }
+.job-del.armed { color: var(--bad); background: var(--bad-soft); border-color: transparent; font-weight: 600; }
+.foot { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
 
 .howto { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
 .howto h2 { font-size: 16px; margin: 0 0 10px; }
 .howto ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
 .howto li span { color: var(--muted); font-size: 13px; display: block; }
-.foot { display: flex; justify-content: center; }
 
 .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-size: 14px; font-weight: 600; z-index: 20; max-width: calc(100% - 32px); }
 @media (prefers-reduced-motion: no-preference) {
@@ -214,10 +233,17 @@ main { max-width: 560px; margin: 0 auto; padding-block: 16px 40px; padding-left:
   </section>
 
   <section id="view-sched" class="view" hidden>
-    <div style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="wk-nav">
+        <button type="button" class="wk-btn" id="wkPrev" aria-label="지난 주">‹</button>
+        <div class="wk-range"><span id="wkRange"></span><small id="wkSub"></small></div>
+        <button type="button" class="wk-btn" id="wkNext" aria-label="다음 주">›</button>
+      </div>
       <div class="sched-summary" id="schedSummary"></div>
-      <div class="days" id="days"></div>
-      <div class="foot"><button class="btn" id="resetBtn" type="button">예시 데이터로 되돌리기</button></div>
+      <div id="wkGrid"></div>
+      <div class="legend"><span><i style="background:var(--c-ac)"></i>에어컨 청소</span><span><i style="background:var(--c-home)"></i>집 청소</span><span><i style="background:var(--bad);height:2px;vertical-align:3px"></i>지금</span><span>일요일은 휴무라 일정이 있을 때만 보여요</span></div>
+      <div id="wkDetail"></div>
+      <div class="foot"><button class="btn" id="wkToday" type="button">이번 주로</button><button class="btn" id="resetBtn" type="button">예시 데이터로 되돌리기</button></div>
     </div>
   </section>
 </main>
@@ -447,18 +473,48 @@ main { max-width: 560px; margin: 0 auto; padding-block: 16px 40px; padding-left:
     $("inboxCount").textContent = pending ? " " + pending : "";
   }
 
-  function timeline(k, prop) {
-    var span = CLOSE - OPEN;
-    var pct = function (x) { return ((Math.max(OPEN, Math.min(CLOSE, x)) - OPEN) / span * 100).toFixed(2); };
-    var h = '<div class="tl-wrap"><div class="tl" aria-hidden="true">';
-    for (var g = OPEN + 120; g < CLOSE; g += 120) h += '<span class="tl-grid" style="left:' + pct(g) + '%"></span>';
-    dayJobs(k).forEach(function (j) {
-      h += '<span class="tl-block" title="' + esc(hm(j.start) + " " + j.label) + '" style="left:' + pct(j.start) + "%;width:" + (pct(j.start + j.dur) - pct(j.start)).toFixed(2) + '%"></span>';
+  var HR = 44;
+  function weekMon(k) { return key(mondayOf(fromKey(k))); }
+  function weekRange(mk) {
+    var a = fromKey(mk), b = addDays(a, 5);
+    return (a.getMonth() + 1) + "월 " + a.getDate() + "일 – " + (a.getMonth() === b.getMonth() ? "" : (b.getMonth() + 1) + "월 ") + b.getDate() + "일";
+  }
+  function shortLabel(l) {
+    var i = l.indexOf("·");
+    var core = /^에어컨/.test(l) && i > 0 ? l.slice(i + 1).trim() : (i > 0 ? l.slice(0, i).trim() : l);
+    return core.replace(/\s*(\d+)대/g, "$1").replace(/, /g, "·");
+  }
+  function weekGrid(mk, o) {
+    o = o || {};
+    var mon = fromKey(mk), tk = key(today0()), days = [];
+    for (var i = 0; i < 7; i++) days.push(key(addDays(mon, i)));
+    if (!(dayJobs(days[6]).length || (o.prop && o.prop.date === days[6]))) days.pop();
+    var cols = "26px repeat(" + days.length + ", minmax(0, 1fr))";
+    var y = function (m) { return (Math.max(OPEN, Math.min(CLOSE, m)) - OPEN) / 60 * HR; };
+    var hgt = function (s, d) { return Math.max(18, y(s + d) - y(s)).toFixed(1); };
+    var h = '<div class="wk"><div class="wk-head" style="grid-template-columns:' + cols + '"><span></span>';
+    days.forEach(function (k) {
+      var d = fromKey(k), n = dayJobs(k).length;
+      h += '<div class="wk-dh' + (k === tk ? " is-today" : "") + (k < tk ? " is-past" : "") + '">' + DOW[d.getDay()] + "<b>" + d.getDate() + '</b><span class="wk-n">' + (n ? n + "건" : "&nbsp;") + "</span></div>";
     });
-    if (prop) h += '<span class="tl-new' + (prop.bad ? " bad" : "") + '" style="left:' + pct(prop.start) + "%;width:" + Math.max(1.5, pct(prop.start + prop.dur) - pct(prop.start)).toFixed(2) + '%"></span>';
-    h += '</div><div class="tl-ticks">';
-    for (var t = OPEN; t <= CLOSE; t += 120) h += '<span style="left:' + pct(t) + '%">' + (t / 60) + "</span>";
-    if ((CLOSE - OPEN) % 120) h += '<span style="left:100%">' + (CLOSE / 60) + "</span>";
+    h += '</div><div class="wk-body" style="grid-template-columns:' + cols + '"><div class="wk-axis" aria-hidden="true">';
+    for (var t = OPEN; t <= CLOSE; t += 60) h += '<span style="top:' + y(t) + 'px">' + (t / 60) + "</span>";
+    h += "</div>";
+    days.forEach(function (k) {
+      h += '<div class="wk-col' + (k < tk ? " is-past" : "") + (fromKey(k).getDay() === 0 ? " is-off" : "") + (o.pick ? " pickable" : "") + '" data-date="' + k + '">';
+      dayJobs(k).forEach(function (j) {
+        var s = j.fullDay ? FULL_START : j.start, d = j.fullDay ? FULL_DUR : j.dur;
+        h += '<button type="button" class="ev' + (/^에어컨/.test(j.label) ? "" : " home") + ((o.hits || []).indexOf(j.id) >= 0 ? " hit" : "") + (o.selId === j.id ? " is-sel" : "") +
+          '" data-job="' + esc(j.id) + '" style="top:' + y(s) + "px;height:" + hgt(s, d) + 'px" aria-label="' + esc(fmtDate(k) + " " + fmtTime(s) + " " + (j.customer || "") + " " + j.label) + '">' +
+          '<span class="ev-t">' + (j.fullDay ? "종일" : hm(s)) + '</span><span class="ev-n">' + esc(j.customer || "고객") + '</span><span class="ev-l">' + esc(shortLabel(j.label)) + "</span></button>";
+      });
+      if (o.prop && o.prop.date === k) {
+        var p = o.prop;
+        h += '<div class="ev prop' + (p.bad ? " bad" : "") + '" style="top:' + y(p.start) + "px;height:" + hgt(p.start, p.dur) + 'px"><span class="ev-t">' + (p.full ? "종일" : hm(p.start)) + '</span><span class="ev-n">' + (p.bad ? "요청" : "새 예약") + "</span></div>";
+      }
+      if (k === tk) { var nm = nowMin(); if (nm > OPEN && nm < CLOSE) h += '<span class="wk-now" style="top:' + y(nm) + 'px"></span>'; }
+      h += "</div>";
+    });
     return h + "</div></div>";
   }
 
@@ -523,12 +579,15 @@ main { max-width: 560px; margin: 0 auto; padding-block: 16px 40px; padding-left:
     h += "<dt>주소</dt><dd" + (cur.address ? "" : ' class="missing"') + ">" + (cur.address ? esc(cur.address) : "주소 없음 · 답장에서 물어보세요") + "</dd>";
     h += "</dl></div>";
 
-    // day view
+    // week view
     if (cur.date) {
-      var prop = ev.status === "ok" || ev.status === "suggest" ? { start: ev.start, dur: cur.full ? FULL_DUR : cur.dur }
-        : (cur.start != null && ev.status === "conflict" ? { start: cur.start, dur: cur.full ? FULL_DUR : cur.dur, bad: true } : null);
-      h += '<div><p class="section-label">' + fmtDate(cur.date) + " 하루 일정</p>" + timeline(cur.date, prop);
-      h += '<div class="legend" style="margin-top:6px"><span><i style="background:var(--block)"></i>기존 예약</span>' + (prop ? '<span><i style="background:' + (prop.bad ? "var(--bad)" : "var(--ok)") + '"></i>' + (prop.bad ? "요청 시간" : "넣을 시간") + "</span>" : "") + "<span>이동시간 30분 포함해서 계산</span></div>";
+      var pdur = cur.full ? FULL_DUR : cur.dur;
+      var prop = sel ? { date: sel.date, start: sel.start, dur: pdur, full: cur.full }
+        : (cur.start != null && ev.status !== "nodate" ? { date: cur.date, start: cur.start, dur: pdur, full: cur.full, bad: true } : null);
+      var focus = sel ? sel.date : cur.date;
+      h += '<div><p class="section-label">' + weekRange(weekMon(focus)) + " 주간 일정</p>" + weekGrid(weekMon(focus), { prop: prop, hits: ev.conflicts.map(function (j) { return j.id; }), pick: !added });
+      h += '<div class="legend" style="margin-top:8px"><span><i style="background:var(--c-ac)"></i>기존 예약</span>' + (prop ? '<span><i style="background:' + (prop.bad ? "var(--bad)" : "var(--ok)") + '"></i>' + (prop.bad ? "요청한 시간" : "넣을 시간") + "</span>" : "") + "<span>이동시간 30분 포함</span></div>";
+      if (!added) h += '<p class="hint" style="margin:4px 0 0">달력의 빈 칸을 누르면 그 시간으로 다시 확인해요.</p>';
       if (ev.conflicts.length) {
         h += '<ul class="conflict-list" style="margin-top:10px">' + ev.conflicts.map(function (j) {
           return "<li><b class=\"num\">" + hm(j.start) + "–" + hm(j.start + j.dur) + "</b> " + esc(j.label) + "<br><span class=\"hint\">" + esc(j.customer) + " · " + esc(j.address) + "</span></li>";
@@ -579,35 +638,29 @@ main { max-width: 560px; margin: 0 auto; padding-block: 16px 40px; padding-left:
   }
 
   // ---------- schedule view ----------
+  var viewMon = null, selJob = null;
+  function defaultMon() { var T = today0(), m = mondayOf(T); if (T.getDay() === 0) m = addDays(m, 7); return key(m); }
   function renderSched() {
-    var T = today0(), tk = key(T);
-    var upcoming = state.jobs.filter(function (j) { return j.date >= tk; });
-    var weekEnd = key(addDays(mondayOf(T), 6));
-    var thisWeek = upcoming.filter(function (j) { return j.date <= weekEnd; }).length;
-    var freeDays = 0, html = "";
-    for (var i = 0; i < 14; i++) {
-      var d = addDays(T, i), k = key(d), js = dayJobs(k), sun = d.getDay() === 0;
-      if (!sun && !js.length) freeDays++;
-      if (sun && !js.length) continue;
-      var busy = js.reduce(function (s, j) { return s + j.dur; }, 0);
-      html += '<div class="day' + (sun ? " sunday" : "") + '"><div class="day-head"><span class="day-name">' + fmtDate(k) + (i === 0 ? "<small>오늘</small>" : i === 1 ? "<small>내일</small>" : "") + '</span><span class="day-load">' +
-        (sun ? "휴무" : js.length ? js.length + "건 · " + fmtDur(busy) : "비어 있음") + "</span></div>";
-      if (!sun) html += timeline(k, null);
-      if (js.length) {
-        html += '<ul class="jobs">' + js.map(function (j) {
-          return '<li class="job"><span class="job-time">' + (j.fullDay ? "종일" : hm(j.start) + "–" + hm(j.start + j.dur)) + '</span><div class="job-main">' + esc(j.label) +
-            '<div class="job-who">' + esc(j.customer || "이름 없음") + (j.address ? " · " + esc(j.address) : "") + (j.phone ? ' · <span class="num">' + esc(j.phone) + "</span>" : "") + "</div></div>" +
-            '<button type="button" class="job-del' + (armedDel === j.id ? " armed" : "") + '" data-del="' + esc(j.id) + '">' + (armedDel === j.id ? "정말 삭제" : "삭제") + "</button></li>";
-        }).join("") + "</ul>";
-      }
-      html += "</div>";
-    }
-    $("days").innerHTML = html;
+    if (!viewMon) viewMon = defaultMon();
+    var mon = fromKey(viewMon), endK = key(addDays(mon, 6)), tk = key(today0());
+    var wj = state.jobs.filter(function (j) { return j.date >= viewMon && j.date <= endK; });
+    var busy = wj.reduce(function (s, j) { return s + (j.fullDay ? FULL_DUR : j.dur); }, 0), free = 0;
+    for (var i = 0; i < 6; i++) { var k = key(addDays(mon, i)); if (k >= tk && !dayJobs(k).length) free++; }
+    var diff = Math.round((mon - fromKey(defaultMon())) / 6048e5);
+    $("wkRange").textContent = weekRange(viewMon);
+    $("wkSub").textContent = diff === 0 ? "이번 주" : diff === 1 ? "다음 주" : diff === -1 ? "지난 주" : diff > 0 ? diff + "주 뒤" : -diff + "주 전";
     $("schedSummary").innerHTML =
-      '<div class="stat"><b>' + dayJobs(tk).length + "</b><span>오늘</span></div>" +
-      '<div class="stat"><b>' + thisWeek + "</b><span>이번 주</span></div>" +
-      '<div class="stat"><b>' + freeDays + "</b><span>2주 내 빈 날</span></div>";
-    $("jobCount").textContent = " " + upcoming.length;
+      '<div class="stat"><b>' + wj.length + "</b><span>예약</span></div>" +
+      '<div class="stat"><b>' + (busy ? (busy / 60).toFixed(busy % 60 ? 1 : 0) : 0) + "</b><span>작업 시간</span></div>" +
+      '<div class="stat"><b>' + free + "</b><span>남은 빈 날</span></div>";
+    $("wkGrid").innerHTML = weekGrid(viewMon, { selId: selJob });
+    var j = state.jobs.find(function (x) { return x.id === selJob; });
+    $("wkDetail").innerHTML = j ?
+      '<div class="detail"><div class="detail-top"><span class="detail-when">' + fmtDate(j.date) + " · " + (j.fullDay ? "하루 종일" : '<span class="num">' + hm(j.start) + "–" + hm(j.start + j.dur) + "</span>") + "</span>" +
+      '<button type="button" class="job-del' + (armedDel === j.id ? " armed" : "") + '" data-del="' + esc(j.id) + '">' + (armedDel === j.id ? "정말 삭제" : "삭제") + "</button></div>" +
+      "<div>" + esc(j.label) + '</div><div class="job-who">' + esc(j.customer || "이름 없음") + (j.phone ? ' · <span class="num">' + esc(j.phone) + "</span>" : "") + (j.address ? "<br>" + esc(j.address) : "") + "</div></div>"
+      : '<p class="hint" style="margin:0;text-align:center">일정을 누르면 고객 정보가 여기 나와요.</p>';
+    $("jobCount").textContent = " " + state.jobs.filter(function (x) { return x.date >= tk; }).length;
   }
 
   // ---------- events ----------
@@ -647,10 +700,22 @@ main { max-width: 560px; margin: 0 auto; padding-block: 16px 40px; padding-left:
     if (e.target.id === "replyText" && $("smsLink")) $("smsLink").href = "sms:" + cur.phone + "?&body=" + encodeURIComponent(e.target.value);
   });
   $("result").addEventListener("click", function (e) {
+    var evb = e.target.closest(".ev[data-job]");
+    if (evb) { var jj = state.jobs.find(function (x) { return x.id === evb.dataset.job; }); if (jj) toast((jj.fullDay ? "종일" : hm(jj.start) + "–" + hm(jj.start + jj.dur)) + " " + (jj.customer || "") + " · " + shortLabel(jj.label)); return; }
+    var col = e.target.closest(".wk-col.pickable");
+    if (col && !added) {
+      var rc = col.getBoundingClientRect(), m = OPEN + Math.floor((e.clientY - rc.top) / HR * 2) * 30;
+      cur.date = col.dataset.date;
+      if (!cur.full) { cur.start = Math.max(OPEN, Math.min(CLOSE - 30, m)); cur.win = null; }
+      sel = null; reevaluate(false);
+      toast(fmtDate(cur.date) + (cur.full ? "" : " " + fmtTime(cur.start)) + "로 다시 확인했어요");
+      return;
+    }
     var a = e.target.closest(".alt");
     if (a && !added) { var alt = ev.alts[+a.dataset.alt]; sel = (sel && sel.date === alt.date && sel.start === alt.start) ? null : { date: alt.date, start: alt.start }; renderResult(false); return; }
     if (e.target.id === "addBtn" && sel && !added) {
-      state.jobs.push({ id: "j" + Date.now(), date: sel.date, start: sel.start, dur: cur.full ? FULL_DUR : cur.dur, fullDay: cur.full, label: cur.label, customer: cur.customer, phone: cur.phone, address: cur.address });
+      var nid = "j" + Date.now(); viewMon = weekMon(sel.date); selJob = nid;
+      state.jobs.push({ id: nid, date: sel.date, start: sel.start, dur: cur.full ? FULL_DUR : cur.dur, fullDay: cur.full, label: cur.label, customer: cur.customer, phone: cur.phone, address: cur.address });
       added = true;
       var msg = state.inbox.find(function (m) { return m.id === cur.msgId; });
       if (msg) { msg.result = { tone: "ok", text: "일정 등록됨" }; msg.done = true; }
@@ -665,17 +730,24 @@ main { max-width: 560px; margin: 0 auto; padding-block: 16px 40px; padding-left:
     }
   });
 
-  $("days").addEventListener("click", function (e) {
+  $("wkGrid").addEventListener("click", function (e) {
+    var b = e.target.closest(".ev[data-job]"); if (!b) return;
+    selJob = selJob === b.dataset.job ? null : b.dataset.job; armedDel = null; renderSched();
+  });
+  $("wkDetail").addEventListener("click", function (e) {
     var b = e.target.closest(".job-del"); if (!b) return;
     var id = b.dataset.del;
-    if (armedDel === id) { state.jobs = state.jobs.filter(function (j) { return j.id !== id; }); armedDel = null; save(); toast("일정을 지웠어요"); if (cur) reevaluate(false); }
+    if (armedDel === id) { state.jobs = state.jobs.filter(function (j) { return j.id !== id; }); armedDel = null; selJob = null; save(); toast("일정을 지웠어요"); if (cur) reevaluate(false); }
     else armedDel = id;
     renderSched();
   });
+  $("wkPrev").addEventListener("click", function () { viewMon = key(addDays(fromKey(viewMon), -7)); selJob = null; renderSched(); });
+  $("wkNext").addEventListener("click", function () { viewMon = key(addDays(fromKey(viewMon), 7)); selJob = null; renderSched(); });
+  $("wkToday").addEventListener("click", function () { viewMon = defaultMon(); selJob = null; renderSched(); });
 
   $("resetBtn").addEventListener("click", function () {
     var d = sampleData(); d.day = key(today0()); state = d; save();
-    cur = null; ev = null; sel = null; added = false; armedDel = null;
+    cur = null; ev = null; sel = null; added = false; armedDel = null; viewMon = null; selJob = null;
     $("result").innerHTML = '<div class="sheet-empty">위에서 문자를 하나 누르면<br>날짜·시간·작업을 읽고 일정표와 겹치는지 알려줘요.</div>';
     renderInbox(); renderSched(); toast("예시 데이터로 되돌렸어요");
   });
