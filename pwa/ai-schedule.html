@@ -1,0 +1,687 @@
+<title>위더스 일정비서</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#0b6e8a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: one phone-width column. Sticky header with two tabs (문자함 / 일정표).
+   문자함 = incoming SMS list -> analysis sheet (verdict, day timeline, alternatives, reply draft). */
+:root {
+  --bg: #eef3f6;
+  --surface: #ffffff;
+  --surface-2: #e4ecf1;
+  --line: #d3dee6;
+  --fg: #13212b;
+  --muted: #5a6b78;
+  --accent: #0b6e8a;
+  --accent-ink: #ffffff;
+  --accent-soft: #d9eff5;
+  --ok: #18774a;
+  --ok-soft: #dcf3e6;
+  --warn: #9a5800;
+  --warn-soft: #fcebd0;
+  --bad: #b42318;
+  --bad-soft: #fde2de;
+  --block: #9fb6c4;
+  --font: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1418; --surface: #152027; --surface-2: #1c2a32; --line: #2a3b45;
+    --fg: #e5eef3; --muted: #92a4b0; --accent: #4fb9d5; --accent-ink: #05252f; --accent-soft: #123540;
+    --ok: #5fcb8f; --ok-soft: #133426; --warn: #e9ab4f; --warn-soft: #3a2a12; --bad: #f2806f; --bad-soft: #3e1b17;
+    --block: #4b6676; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1418; --surface: #152027; --surface-2: #1c2a32; --line: #2a3b45;
+  --fg: #e5eef3; --muted: #92a4b0; --accent: #4fb9d5; --accent-ink: #05252f; --accent-soft: #123540;
+  --ok: #5fcb8f; --ok-soft: #133426; --warn: #e9ab4f; --warn-soft: #3a2a12; --bad: #f2806f; --bad-soft: #3e1b17;
+  --block: #4b6676; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; line-height: 1.55; -webkit-text-size-adjust: 100%; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--accent); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--accent); color: var(--accent-ink); }
+.top-inner { max-width: 560px; margin: 0 auto; padding-block: 14px 0; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.brand { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand h1 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+.brand .today { font-size: 13px; opacity: .85; }
+.tabs { display: flex; gap: 4px; margin-top: 12px; }
+.tab { flex: 1; border: 0; background: transparent; color: var(--accent-ink); opacity: .75; padding: 10px 8px 12px; font-weight: 600; border-bottom: 3px solid transparent; }
+.tab[aria-selected="true"] { opacity: 1; border-bottom-color: var(--accent-ink); }
+.tab .count { font-family: var(--mono); font-size: 12px; margin-left: 4px; }
+
+main { max-width: 560px; margin: 0 auto; padding-block: 16px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 20px; }
+.section-label { font-size: 12px; font-weight: 600; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; }
+.demo-note { font-size: 13px; color: var(--muted); background: var(--surface-2); border-radius: 10px; padding: 10px 12px; margin: 0; }
+
+/* inbox */
+.inbox { display: flex; flex-direction: column; gap: 10px; }
+.sms { text-align: left; width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.sms.is-active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.sms-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sms-from { font-weight: 600; font-family: var(--mono); font-size: 14px; }
+.sms-time { font-size: 12px; color: var(--muted); }
+.sms-body { margin: 0; font-size: 14px; color: var(--fg); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.sms-cta { font-size: 13px; font-weight: 600; color: var(--accent); }
+.pill { margin-left: auto; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.pill-new { background: var(--accent-soft); color: var(--accent); }
+.pill-ok { background: var(--ok-soft); color: var(--ok); }
+.pill-bad { background: var(--bad-soft); color: var(--bad); }
+.pill-warn { background: var(--warn-soft); color: var(--warn); }
+
+.paste { background: var(--surface); border: 1px dashed var(--line); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.paste label { font-size: 13px; font-weight: 600; }
+.paste textarea { width: 100%; min-height: 84px; resize: vertical; border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--bg); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { border: 0; border-radius: 10px; padding: 11px 14px; font-weight: 600; font-size: 14px; background: var(--surface-2); color: var(--fg); text-decoration: none; text-align: center; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-grow { flex: 1; }
+.btn:disabled { opacity: .5; cursor: default; }
+
+/* result sheet */
+.sheet { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.sheet-empty { padding: 28px 18px; text-align: center; color: var(--muted); font-size: 14px; }
+.alert { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; background: var(--bad-soft); color: var(--bad); }
+.alert.ok { background: var(--ok-soft); color: var(--ok); }
+.alert.warn { background: var(--warn-soft); color: var(--warn); }
+.alert-icon { flex: none; width: 22px; height: 22px; }
+.alert-title { font-weight: 700; font-size: 15px; }
+.alert-text { font-size: 13px; color: var(--fg); margin-top: 2px; }
+.sheet-body { padding: 14px; display: flex; flex-direction: column; gap: 16px; }
+.quote { margin: 0; font-size: 13px; color: var(--muted); border-left: 3px solid var(--line); padding: 2px 0 2px 10px; }
+.fields { display: grid; grid-template-columns: 88px 1fr; gap: 8px 12px; align-items: center; margin: 0; }
+.fields dt { font-size: 13px; color: var(--muted); }
+.fields dd { margin: 0; min-width: 0; font-size: 14px; overflow-wrap: anywhere; }
+.fields input, .fields select { width: 100%; max-width: 220px; border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 6px 8px; font-size: 14px; }
+.hint { font-size: 12px; color: var(--muted); }
+.missing { color: var(--warn); }
+
+.conflict-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.conflict-list li { font-size: 14px; background: var(--bad-soft); border-radius: 8px; padding: 8px 10px; }
+
+/* timeline */
+.tl-wrap { display: flex; flex-direction: column; gap: 4px; }
+.tl { position: relative; height: 30px; background: var(--surface-2); border-radius: 6px; overflow: hidden; }
+.tl-grid { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line); }
+.tl-block { position: absolute; top: 4px; bottom: 4px; border-radius: 4px; background: var(--block); }
+.tl-new { position: absolute; top: 2px; bottom: 2px; border-radius: 5px; border: 2px dashed var(--ok); background: color-mix(in srgb, var(--ok) 22%, transparent); }
+.tl-new.bad { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 22%, transparent); }
+.tl-ticks { position: relative; height: 16px; font-size: 11px; color: var(--muted); }
+.tl-ticks span { position: absolute; transform: translateX(-50%); font-family: var(--mono); }
+.tl-ticks span:first-child { transform: none; }
+.tl-ticks span:last-child { transform: translateX(-100%); }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.legend i { display: inline-block; width: 12px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+
+.alts { display: flex; flex-direction: column; gap: 8px; }
+.alt { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 10px 12px; }
+.alt[aria-pressed="true"] { border-color: var(--ok); background: var(--ok-soft); }
+.alt-date { font-weight: 600; }
+.alt-why { font-size: 12px; color: var(--muted); }
+.alt-mark { flex: none; width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--line); }
+.alt[aria-pressed="true"] .alt-mark { border-color: var(--ok); background: var(--ok); box-shadow: inset 0 0 0 3px var(--ok-soft); }
+
+.reply { width: 100%; min-height: 128px; border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--bg); font-size: 14px; resize: vertical; }
+.phone-line { font-size: 13px; color: var(--muted); }
+.done-banner { background: var(--ok-soft); color: var(--ok); border-radius: 10px; padding: 10px 12px; font-weight: 600; font-size: 14px; }
+
+/* schedule */
+.sched-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.stat b { display: block; font-family: var(--mono); font-size: 22px; font-weight: 600; }
+.stat span { font-size: 12px; color: var(--muted); }
+.days { display: flex; flex-direction: column; gap: 12px; }
+.day { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.day.sunday { opacity: .6; }
+.day-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.day-name { font-weight: 700; }
+.day-name small { font-weight: 500; color: var(--muted); margin-left: 6px; font-size: 12px; }
+.day-load { font-size: 12px; color: var(--muted); }
+.jobs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.job { display: grid; grid-template-columns: 92px 1fr auto; gap: 10px; align-items: start; font-size: 14px; }
+.job-time { font-family: var(--mono); font-size: 13px; color: var(--accent); padding-top: 1px; }
+.job-main { min-width: 0; }
+.job-who { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.job-del { border: 0; background: transparent; color: var(--muted); font-size: 12px; padding: 2px 4px; border-radius: 6px; }
+.job-del.armed { color: var(--bad); background: var(--bad-soft); font-weight: 600; }
+.free { font-size: 13px; color: var(--muted); }
+
+.howto { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+.howto h2 { font-size: 16px; margin: 0 0 10px; }
+.howto ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+.howto li span { color: var(--muted); font-size: 13px; display: block; }
+.foot { display: flex; justify-content: center; }
+
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-size: 14px; font-weight: 600; z-index: 20; max-width: calc(100% - 32px); }
+@media (prefers-reduced-motion: no-preference) {
+  .sheet.fresh { animation: rise .25s ease-out; }
+  @keyframes rise { from { transform: translateY(6px); opacity: .6; } to { transform: none; opacity: 1; } }
+}
+</style>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="brand">
+      <h1>위더스 일정비서</h1>
+      <span class="today" id="todayLabel"></span>
+    </div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-inbox" aria-selected="true" data-view="inbox">받은 문자<span class="count" id="inboxCount"></span></button>
+      <button class="tab" role="tab" id="tab-sched" aria-selected="false" data-view="sched">일정표<span class="count" id="jobCount"></span></button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="view-inbox" class="view">
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <p class="demo-note">체험용 예시예요. 아래 문자는 샘플이고, 일정표에도 예시 일정이 들어 있어요. 문자를 누르면 일정표와 비교해서 바로 알려줘요.</p>
+
+      <div>
+        <p class="section-label">새로 온 문자</p>
+        <div class="inbox" id="inbox"></div>
+      </div>
+
+      <form class="paste" id="pasteForm">
+        <label for="pasteText">받은 문자 붙여넣기</label>
+        <textarea id="pasteText" placeholder="예) 12월 3일 오후 3시에 벽걸이 에어컨 2대 청소 가능할까요? 마포구 공덕동 래미안 101동 902호 이수빈입니다"></textarea>
+        <div class="row"><button class="btn btn-primary btn-grow" type="submit">일정 확인하기</button></div>
+      </form>
+
+      <div id="resultAnchor">
+        <p class="section-label">분석 결과</p>
+        <div class="sheet" id="result"><div class="sheet-empty">위에서 문자를 하나 누르면<br>날짜·시간·작업을 읽고 일정표와 겹치는지 알려줘요.</div></div>
+      </div>
+
+      <div class="howto">
+        <h2>실제로 쓰게 되면</h2>
+        <ol>
+          <li>문자가 오면 자동으로 이 앱에 들어와요<span>안드로이드는 문자 자동전달 앱, 아이폰은 단축어 자동화로 연결</span></li>
+          <li>AI가 문자를 읽고 일정표와 비교해요<span>이 데모는 정해진 규칙으로 읽어요. 실제 버전은 AI가 말투가 달라도 알아들어요</span></li>
+          <li>겹치면 카카오톡으로 아빠에게 알림이 가요<span>대신 가능한 시간과 답장 문자까지 만들어서 보내줘요</span></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-sched" class="view" hidden>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="sched-summary" id="schedSummary"></div>
+      <div class="days" id="days"></div>
+      <div class="foot"><button class="btn" id="resetBtn" type="button">예시 데이터로 되돌리기</button></div>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function () {
+  "use strict";
+  // ---------- constants ----------
+  var OPEN = 8 * 60, CLOSE = 19 * 60, BUF = 30;   // 영업 08:00~19:00, 이동시간 30분
+  var FULL_START = 8 * 60 + 30, FULL_DUR = 9 * 60; // 하루 종일 작업 08:30~17:30
+  var UNIT = { "벽걸이": 60, "스탠드": 90, "투인원": 150, "시스템": 120, "세탁기": 120 };
+  var DOW = "일월화수목금토";
+  var STORE = "withers-ai-schedule-v1";
+
+  // ---------- date helpers ----------
+  function pad(n) { return String(n).padStart(2, "0"); }
+  function key(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function fromKey(k) { var p = k.split("-").map(Number); return new Date(p[0], p[1] - 1, p[2]); }
+  function addDays(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function today0() { var d = new Date(); d.setHours(0, 0, 0, 0); return d; }
+  function nowMin() { var d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
+  function fmtDate(k) { var d = fromKey(k); return (d.getMonth() + 1) + "월 " + d.getDate() + "일(" + DOW[d.getDay()] + ")"; }
+  function fmtShort(k) { var d = fromKey(k); return (d.getMonth() + 1) + "/" + d.getDate() + "(" + DOW[d.getDay()] + ")"; }
+  function fmtTime(min) { var h = Math.floor(min / 60), m = min % 60; return (h < 12 ? "오전 " : "오후 ") + (h % 12 || 12) + "시" + (m ? " " + m + "분" : ""); }
+  function hm(min) { return pad(Math.floor(min / 60)) + ":" + pad(min % 60); }
+  function fmtDur(d) { var h = Math.floor(d / 60), m = d % 60; return (h ? h + "시간" : "") + (m ? (h ? " " : "") + m + "분" : ""); }
+  function workday(T, n) { var d = new Date(T), c = 0; while (c < n) { d = addDays(d, 1); if (d.getDay() !== 0) c++; } return d; }
+  function mondayOf(T) { return addDays(T, -((T.getDay() + 6) % 7)); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+
+  // ---------- sample data (always relative to today) ----------
+  function sampleData() {
+    var T = today0();
+    var W = function (n) { return key(workday(T, n)); };
+    var nextWed = key(addDays(mondayOf(T), 7 + 2));
+    var jobs = [
+      { date: W(1), start: 510, dur: 90, label: "에어컨 청소 · 스탠드 1대", customer: "이정훈", phone: "010-4821-1937", address: "송파구 가락동 헬리오시티 512동" },
+      { date: W(1), start: 840, dur: 120, label: "에어컨 청소 · 벽걸이 2대", customer: "최수진", phone: "010-7714-2280", address: "강동구 고덕동 그라시움 3102호" },
+      { date: W(2), start: 570, dur: 120, label: "에어컨 청소 · 벽걸이 2대", customer: "박상철", phone: "010-3390-5521", address: "강남구 역삼동 역삼래미안 105동" },
+      { date: W(2), start: 780, dur: 150, label: "에어컨 청소 · 투인원 1대", customer: "한지민", phone: "010-9081-6642", address: "강남구 개포동 디에이치아너힐즈" },
+      { date: W(3), start: 780, dur: 180, label: "에어컨 청소 · 스탠드 2대", customer: "오세영", phone: "010-2257-8410", address: "서초구 잠원동 신반포자이" },
+      { date: nextWed, start: 600, dur: 60, label: "에어컨 청소 · 벽걸이 1대", customer: "윤미래", phone: "010-6612-0393", address: "성동구 옥수동 래미안옥수" }
+    ].map(function (j, i) { j.id = "s" + i; j.fullDay = false; return j; });
+
+    var w1 = workday(T, 1), w2 = workday(T, 2), w4 = workday(T, 4);
+    var md = function (d) { return (d.getMonth() + 1) + "월 " + d.getDate() + "일"; };
+    var tomorrowText = key(w1) === key(addDays(T, 1)) ? "내일" : md(w1);
+    var inbox = [
+      { id: "m1", from: "010-2345-6789", time: "오전 8:42", text: "안녕하세요~ 에어컨 청소 문의드려요. " + md(w2) + " 오전 10시에 벽걸이 2대 가능할까요? 주소는 강남구 역삼동 역삼아이파크 103동 1201호입니다. 김미영이에요." },
+      { id: "m2", from: "010-5532-1180", time: "오전 9:15", text: DOW[w4.getDay()] + "요일 오후 2시에 스탠드 에어컨 1대 청소 부탁드립니다. 서초구 반포동 반포자이 118동이고 정다은입니다." },
+      { id: "m3", from: "010-8820-4417", time: "오전 10:03", text: tomorrowText + " 오전 중에 시스템에어컨 1대 청소 가능한가요? 사무실이라 시간은 맞춰드릴게요. 송파구 문정동 법조타운 SK V1 805호" },
+      { id: "m4", from: "010-3018-7765", time: "오전 11:27", text: "다음주 수요일에 입주청소 예약하고 싶어요. 32평 아파트고 성동구 행당동 서울숲리버뷰자이입니다. 이름은 강태호예요." }
+    ];
+    return { jobs: jobs, inbox: inbox };
+  }
+
+  var state;
+  function load() {
+    try { var s = JSON.parse(localStorage.getItem(STORE)); if (s && s.jobs && s.inbox && s.day === key(today0())) return s; } catch (e) {}
+    var d = sampleData(); d.day = key(today0()); return d;
+  }
+  function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
+  state = load();
+
+  // ---------- SMS parser (rule-based stand-in for the AI step) ----------
+  function parseSMS(raw) {
+    var T = today0(), t = raw.replace(/\s+/g, " "), m;
+    var r = { date: null, dateText: "", start: null, timeText: "", win: null, full: false, dur: 60, label: "", customer: "", phone: "", address: "" };
+
+    m = t.match(/01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}/);
+    if (m) { r.phone = m[0].replace(/[\s.]/g, "-"); t = t.replace(m[0], " "); }
+
+    // date
+    var rel = { "오늘": 0, "금일": 0, "내일": 1, "낼": 1, "모레": 2, "글피": 3 };
+    function setMD(mo, d, txt) {
+      var dt = new Date(T.getFullYear(), mo - 1, d);
+      if (dt < addDays(T, -30)) dt = new Date(T.getFullYear() + 1, mo - 1, d);
+      if (dt.getMonth() === mo - 1) { r.date = key(dt); r.dateText = txt; }
+    }
+    if ((m = t.match(/(오늘|금일|내일|모레|글피)/))) { r.date = key(addDays(T, rel[m[1]])); r.dateText = m[1]; }
+    else if ((m = t.match(/(이번\s*주|금주|다다음\s*주|다음\s*주|담주)?\s*([월화수목금토일])\s*요일/))) {
+      var idx = DOW.indexOf(m[2]), off = (idx + 6) % 7, w = (m[1] || "").replace(/\s/g, ""), mon = mondayOf(T), d;
+      if (w === "다음주" || w === "담주") d = addDays(mon, 7 + off);
+      else if (w === "다다음주") d = addDays(mon, 14 + off);
+      else if (w === "이번주" || w === "금주") d = addDays(mon, off);
+      else d = addDays(T, ((idx - T.getDay() + 7) % 7) || 7);
+      r.date = key(d); r.dateText = m[0].trim();
+    }
+    else if ((m = t.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/))) setMD(+m[1], +m[2], m[0]);
+    else if ((m = t.match(/(?:^|[^\d])(\d{1,2})\s*[\/.]\s*(\d{1,2})(?!\d)/)) && +m[1] >= 1 && +m[1] <= 12 && +m[2] >= 1 && +m[2] <= 31) setMD(+m[1], +m[2], m[1] + "/" + m[2]);
+    else if ((m = t.match(/(?:^|[^\d월])(\d{1,2})\s*일(?![\d요])/))) {
+      var dd = +m[1], dt = new Date(T.getFullYear(), T.getMonth(), dd);
+      if (dt < T) dt = new Date(T.getFullYear(), T.getMonth() + 1, dd);
+      if (dd >= 1 && dd <= 31) { r.date = key(dt); r.dateText = m[1] + "일"; }
+    }
+
+    // time
+    if ((m = t.match(/(오전|오후|아침|낮|저녁|밤)?\s*(\d{1,2})\s*시(?!스템|간)\s*(반|(\d{1,2})\s*분)?/))) {
+      var h = +m[2], mi = m[3] === "반" ? 30 : (m[4] ? +m[4] : 0), ap = m[1] || "";
+      if (/오후|저녁|밤/.test(ap) && h < 12) h += 12;
+      else if (ap === "낮" && h <= 6) h += 12;
+      else if (!ap && h >= 1 && h <= 7) h += 12;
+      r.start = h * 60 + mi; r.timeText = m[0].trim();
+    } else if ((m = t.match(/(?:^|[^\d])(\d{1,2}):(\d{2})/))) {
+      r.start = +m[1] * 60 + +m[2]; r.timeText = m[1] + ":" + m[2];
+    } else if (/오전/.test(t)) { r.win = { from: 540, to: 690 }; r.timeText = "오전 중"; }
+    else if (/오후|점심\s*이후/.test(t)) { r.win = { from: 780, to: 1050 }; r.timeText = "오후 중"; }
+    else if (/저녁|퇴근/.test(t)) { r.win = { from: 1020, to: 1080 }; r.timeText = "저녁"; }
+    else { r.win = { from: 540, to: 1080 }; r.timeText = ""; }
+
+    // job type & duration
+    var items = [], dur = 0;
+    var kinds = [["시스템", /시스템|천장형|천정형/], ["투인원", /투인원|2\s?in\s?1/i], ["스탠드", /스탠드/], ["벽걸이", /벽걸이/]];
+    kinds.forEach(function (k) {
+      var km = t.match(k[1]); if (!km) return;
+      var after = t.slice(km.index + km[0].length), cm = after.match(/^[^\d.,!?]{0,10}?(\d+)\s*대/);
+      var n = cm ? +cm[1] : 1; items.push(k[0] + " " + n + "대"); dur += UNIT[k[0]] * n;
+    });
+    if (!items.length && /에어컨|에어콘/.test(t)) { var cm2 = t.match(/(\d+)\s*대/), n2 = cm2 ? +cm2[1] : 1; items.push("벽걸이 " + n2 + "대"); dur += UNIT["벽걸이"] * n2; }
+    var py = t.match(/(\d+)\s*평/);
+    if (/(입주|이사)\s*청소/.test(t)) { r.full = true; r.label = (/입주/.test(t) ? "입주청소" : "이사청소") + (py ? " · " + py[1] + "평" : ""); dur = FULL_DUR; }
+    else if (/거주\s*청소|집\s*청소|(?<!\d\s*)대청소/.test(t)) { r.label = "거주청소" + (py ? " · " + py[1] + "평" : ""); dur = Math.max(dur, 300); }
+    else if (/세탁기/.test(t)) { r.label = "세탁기 청소"; dur = Math.max(dur, UNIT["세탁기"]); }
+    else if (items.length) r.label = "에어컨 청소 · " + items.join(", ");
+    else { r.label = "청소 (종류 확인 필요)"; dur = 120; }
+    r.dur = Math.max(60, dur);
+    if (r.full) { r.start = FULL_START; r.win = null; r.timeText = r.timeText || "하루 종일"; }
+
+    // customer
+    var nm = t.match(/(?:이름은|성함은|저는|고객명\s*:?)\s*([가-힣]{2,4}?)(?=입니다|이에요|예요|이요|[\s.,!~]|$)/) ||
+             t.match(/(?:^|[\s.,~!])([가-힣]{2,4}?)(?=(?:입니다|이에요|예요)(?:[\s.,!~]|$))/);
+    if (nm && !/사무실|아파트|가게|매장|빌라|주택|상가|오피스텔|학원|식당/.test(nm[1])) r.customer = nm[1];
+
+    // address
+    var am = t.match(/(?:[가-힣]+(?:특별시|광역시|시|도)\s)?[가-힣]+(?:구|군)\s[가-힣0-9]+(?:동|읍|면|로|길)(?:\s+[A-Za-z0-9가-힣\-]+){0,5}/);
+    if (am) {
+      var toks = am[0].split(/\s+/), keep = [], okTok = /(\d|[A-Za-z]|동|호|층|타운|아파트|빌라|자이|힐즈|파크|캐슬|뷰|오피스텔|빌딩|타워|센터|마을|단지|힐스|푸르지오|래미안|시티)$/;
+      for (var i = 0; i < toks.length; i++) {
+        var tk = toks[i], stripped = tk.replace(/(입니다|이고|이에요|예요|이요|이라서?|에서|이며|고)$/, "");
+        if (i < 3 && i < toks.length) { keep.push(stripped); if (stripped !== tk) break; continue; }
+        if (!okTok.test(stripped) && !/\d|[A-Za-z]/.test(stripped)) break;
+        keep.push(stripped); if (stripped !== tk) break;
+      }
+      r.address = keep.join(" ");
+    }
+    return r;
+  }
+
+  // ---------- schedule logic ----------
+  function dayJobs(k) { return state.jobs.filter(function (j) { return j.date === k; }).sort(function (a, b) { return a.start - b.start; }); }
+  function clash(k, start, dur, full) {
+    var js = dayJobs(k);
+    if (full) return js;
+    return js.filter(function (j) { return j.fullDay || (start < j.start + j.dur + BUF && j.start < start + dur + BUF); });
+  }
+  function fits(k, start, dur, full) {
+    if (k === key(today0()) && start < nowMin() + 60) return false;
+    if (!full && (start < OPEN || start + dur > CLOSE)) return false;
+    return clash(k, start, dur, full).length === 0;
+  }
+  function bestStart(k, dur, pref, lo, hi, skip) {
+    var c = [];
+    for (var s = lo; s <= hi; s += 30) if (s !== skip) c.push(s);
+    c.sort(function (a, b) { return Math.abs(a - pref) - Math.abs(b - pref) || a - b; });
+    for (var i = 0; i < c.length; i++) if (fits(k, c[i], dur, false)) return c[i];
+    return null;
+  }
+  function findAlts(r, n) {
+    var T = today0(), tk = key(T), out = [];
+    var base = r.date && r.date >= tk ? fromKey(r.date) : addDays(T, 1);
+    var pref = r.start != null ? r.start : (r.win ? r.win.from : 600);
+    for (var i = 0; i < 40 && out.length < n; i++) {
+      var d = addDays(base, i), k = key(d);
+      if (d.getDay() === 0 || k < tk) continue;
+      if (r.full) { if (k !== r.date && fits(k, FULL_START, FULL_DUR, true)) out.push({ date: k, start: FULL_START, sameDay: false }); continue; }
+      var s = bestStart(k, r.dur, pref, OPEN, CLOSE - r.dur, k === r.date ? r.start : null);
+      if (s != null) out.push({ date: k, start: s, sameDay: k === r.date });
+    }
+    return out;
+  }
+  function evaluate(r) {
+    var tk = key(today0()), ev = { status: "", conflicts: [], start: r.start, alts: [] };
+    if (!r.date) ev.status = "nodate";
+    else if (r.date < tk || (r.date === tk && r.start != null && !r.full && r.start < nowMin())) ev.status = "past";
+    else if (fromKey(r.date).getDay() === 0) ev.status = "closed";
+    else if (r.full) { ev.conflicts = clash(r.date, 0, 0, true); ev.status = ev.conflicts.length ? "conflict" : "ok"; ev.start = FULL_START; }
+    else if (r.start != null) {
+      if (r.start < OPEN || r.start + r.dur > CLOSE) ev.status = "outside";
+      else { ev.conflicts = clash(r.date, r.start, r.dur, false); ev.status = ev.conflicts.length ? "conflict" : "ok"; }
+    } else {
+      var w = r.win || { from: 540, to: 1080 };
+      var s = bestStart(r.date, r.dur, w.from, w.from, Math.min(w.to, CLOSE - r.dur), null);
+      if (s != null) { ev.status = "suggest"; ev.start = s; }
+      else { ev.status = "conflict"; ev.conflicts = dayJobs(r.date); ev.windowFull = true; }
+    }
+    if (ev.status !== "ok" && ev.status !== "suggest") ev.alts = findAlts(r, 3);
+    return ev;
+  }
+
+  // ---------- UI state ----------
+  var cur = null, ev = null, sel = null, added = false, armedDel = null;
+  var $ = function (id) { return document.getElementById(id); };
+
+  function toast(msg) {
+    var t = $("toast"); t.textContent = msg; t.hidden = false;
+    clearTimeout(toast._t); toast._t = setTimeout(function () { t.hidden = true; }, 2200);
+  }
+
+  function pillFor(status) {
+    if (status === "ok") return { tone: "ok", text: "가능" };
+    if (status === "suggest") return { tone: "ok", text: "시간 추천" };
+    if (status === "conflict") return { tone: "bad", text: "일정 겹침" };
+    return { tone: "warn", text: "확인 필요" };
+  }
+
+  function renderInbox() {
+    $("inbox").innerHTML = state.inbox.map(function (m) {
+      var p = m.result ? '<span class="pill pill-' + m.result.tone + '">' + esc(m.result.text) + "</span>" : '<span class="pill pill-new">새 문자</span>';
+      return '<button type="button" class="sms' + (cur && cur.msgId === m.id ? " is-active" : "") + '" data-id="' + esc(m.id) + '">' +
+        '<div class="sms-top"><span class="sms-from">' + esc(m.from) + '</span><span class="sms-time">' + esc(m.time) + "</span>" + p + "</div>" +
+        '<p class="sms-body">' + esc(m.text) + "</p>" +
+        '<span class="sms-cta">' + (m.result ? "결과 다시 보기" : "일정 확인하기") + "</span></button>";
+    }).join("");
+    var pending = state.inbox.filter(function (m) { return !m.result; }).length;
+    $("inboxCount").textContent = pending ? " " + pending : "";
+  }
+
+  function timeline(k, prop) {
+    var span = CLOSE - OPEN;
+    var pct = function (x) { return ((Math.max(OPEN, Math.min(CLOSE, x)) - OPEN) / span * 100).toFixed(2); };
+    var h = '<div class="tl-wrap"><div class="tl" aria-hidden="true">';
+    for (var g = OPEN + 120; g < CLOSE; g += 120) h += '<span class="tl-grid" style="left:' + pct(g) + '%"></span>';
+    dayJobs(k).forEach(function (j) {
+      h += '<span class="tl-block" title="' + esc(hm(j.start) + " " + j.label) + '" style="left:' + pct(j.start) + "%;width:" + (pct(j.start + j.dur) - pct(j.start)).toFixed(2) + '%"></span>';
+    });
+    if (prop) h += '<span class="tl-new' + (prop.bad ? " bad" : "") + '" style="left:' + pct(prop.start) + "%;width:" + Math.max(1.5, pct(prop.start + prop.dur) - pct(prop.start)).toFixed(2) + '%"></span>';
+    h += '</div><div class="tl-ticks">';
+    for (var t = OPEN; t <= CLOSE; t += 120) h += '<span style="left:' + pct(t) + '%">' + (t / 60) + "</span>";
+    if ((CLOSE - OPEN) % 120) h += '<span style="left:100%">' + (CLOSE / 60) + "</span>";
+    return h + "</div></div>";
+  }
+
+  var ICON_BAD = '<svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3 2 20h20L12 3z" fill="none"/><path d="M12 10v4M12 17.5v.01"/></svg>';
+  var ICON_OK = '<svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" fill="none"/><path d="m8 12 3 3 5-6"/></svg>';
+
+  function whenText(date, start, full) { return fmtDate(date) + " " + (full ? "하루 종일" : fmtTime(start)); }
+
+  function replyText() {
+    var name = cur.customer ? cur.customer + "님, " : "";
+    var head = "안녕하세요 " + name + "위더스환경입니다.\n";
+    if (sel) {
+      return head + whenText(sel.date, sel.start, cur.full) + " " + cur.label + (added ? " 예약 확정되었습니다." : " 예약 가능합니다. 이 시간으로 잡아드릴까요?") +
+        (added ? "\n방문 전날 다시 연락드리겠습니다. 감사합니다." : "");
+    }
+    if (ev.status === "nodate") return head + "문의 감사합니다. 원하시는 날짜와 시간을 알려주시면 바로 확인해 드리겠습니다.";
+    var why = ev.status === "closed" ? "일요일은 휴무라" : ev.status === "outside" ? "작업 가능 시간(오전 8시~오후 7시)이 아니라" : ev.status === "past" ? "이미 지난 시간이라" : "이미 다른 예약이 있어서";
+    var asked = cur.date ? fmtDate(cur.date) + (cur.full ? "" : " " + (cur.start != null ? fmtTime(cur.start) : cur.timeText || "")) : "말씀하신 날짜";
+    var t = head + "말씀하신 " + asked.trim() + "에는 " + why + " 어렵습니다.";
+    if (ev.alts.length) {
+      t += "\n가능한 시간은\n" + ev.alts.map(function (a, i) { return "①②③"[i] + " " + whenText(a.date, a.start, cur.full); }).join("\n") + "\n입니다. 편하신 시간 알려주시면 바로 잡아드릴게요.";
+    }
+    return t;
+  }
+
+  function renderResult(fresh) {
+    var box = $("result");
+    if (!cur) return;
+    var bad = ev.status !== "ok" && ev.status !== "suggest";
+    var h = "";
+
+    // alert banner (what dad would get as a push / KakaoTalk)
+    var title, text, cls;
+    if (ev.status === "ok") { cls = "ok"; title = "이 시간 비어 있어요"; text = whenText(cur.date, ev.start, cur.full) + "에 넣을 수 있어요."; }
+    else if (ev.status === "suggest") { cls = "ok"; title = "빈 시간을 찾았어요"; text = "고객 요청(" + esc(cur.timeText || "시간 무관") + ")에 맞춰 " + fmtDate(cur.date) + " " + fmtTime(ev.start) + " 시작을 추천해요."; }
+    else if (ev.status === "conflict") {
+      cls = ""; title = "일정이 겹쳐요";
+      text = ev.windowFull ? fmtDate(cur.date) + " " + esc(cur.timeText) + "에는 넣을 자리가 없어요."
+        : whenText(cur.date, cur.start, cur.full) + " 요청이 기존 예약 " + ev.conflicts.length + "건과 겹쳐요.";
+    }
+    else if (ev.status === "closed") { cls = "warn"; title = "일요일은 휴무예요"; text = fmtDate(cur.date) + " 요청이에요. 다른 날을 골라 주세요."; }
+    else if (ev.status === "outside") { cls = "warn"; title = "작업 시간 밖이에요"; text = fmtTime(cur.start) + " 시작이면 " + fmtTime(cur.start + cur.dur) + "에 끝나요. 작업은 오전 8시~오후 7시예요."; }
+    else if (ev.status === "past") { cls = "warn"; title = "이미 지난 시간이에요"; text = "날짜를 다시 확인해 주세요."; }
+    else { cls = "warn"; title = "날짜를 못 찾았어요"; text = "아래에서 날짜를 직접 골라 주세요."; }
+    h += '<div class="alert ' + cls + '" role="status">' + (cls === "ok" ? ICON_OK : ICON_BAD) + '<div><div class="alert-title">' + title + '</div><div class="alert-text">' + text + "</div></div></div>";
+
+    h += '<div class="sheet-body">';
+    h += '<blockquote class="quote">' + esc(cur.text) + "</blockquote>";
+
+    // parsed fields (editable)
+    var durOpts = [60, 90, 120, 150, 180, 240, 300, 360];
+    if (!cur.full && durOpts.indexOf(cur.dur) < 0) { durOpts.push(cur.dur); durOpts.sort(function (a, b) { return a - b; }); }
+    h += '<div><p class="section-label">문자에서 읽은 내용</p><dl class="fields">';
+    h += '<dt><label for="fDate">날짜</label></dt><dd><input type="date" id="fDate" value="' + (cur.date || "") + '">' + (cur.dateText ? ' <span class="hint">“' + esc(cur.dateText) + '”</span>' : "") + "</dd>";
+    h += '<dt><label for="fTime">시간</label></dt><dd>' + (cur.full ? "하루 종일 (08:30~17:30)" :
+      '<input type="time" id="fTime" step="1800" value="' + (cur.start != null ? hm(cur.start) : "") + '">' + (cur.start == null ? ' <span class="hint">' + (cur.timeText ? "“" + esc(cur.timeText) + "” → 빈 시간 자동 선택" : "시간 언급 없음 → 빈 시간 자동 선택") + "</span>" : "")) + "</dd>";
+    h += "<dt>작업</dt><dd>" + esc(cur.label) + "</dd>";
+    h += '<dt><label for="fDur">예상 소요</label></dt><dd>' + (cur.full ? "하루 종일" :
+      '<select id="fDur">' + durOpts.map(function (d) { return '<option value="' + d + '"' + (d === cur.dur ? " selected" : "") + ">" + fmtDur(d) + "</option>"; }).join("") + "</select>") + "</dd>";
+    h += "<dt>고객</dt><dd" + (cur.customer ? "" : ' class="missing"') + ">" + (cur.customer ? esc(cur.customer) : "이름 없음") + "</dd>";
+    h += '<dt>연락처</dt><dd class="num">' + esc(cur.phone || "-") + "</dd>";
+    h += "<dt>주소</dt><dd" + (cur.address ? "" : ' class="missing"') + ">" + (cur.address ? esc(cur.address) : "주소 없음 · 답장에서 물어보세요") + "</dd>";
+    h += "</dl></div>";
+
+    // day view
+    if (cur.date) {
+      var prop = ev.status === "ok" || ev.status === "suggest" ? { start: ev.start, dur: cur.full ? FULL_DUR : cur.dur }
+        : (cur.start != null && ev.status === "conflict" ? { start: cur.start, dur: cur.full ? FULL_DUR : cur.dur, bad: true } : null);
+      h += '<div><p class="section-label">' + fmtDate(cur.date) + " 하루 일정</p>" + timeline(cur.date, prop);
+      h += '<div class="legend" style="margin-top:6px"><span><i style="background:var(--block)"></i>기존 예약</span>' + (prop ? '<span><i style="background:' + (prop.bad ? "var(--bad)" : "var(--ok)") + '"></i>' + (prop.bad ? "요청 시간" : "넣을 시간") + "</span>" : "") + "<span>이동시간 30분 포함해서 계산</span></div>";
+      if (ev.conflicts.length) {
+        h += '<ul class="conflict-list" style="margin-top:10px">' + ev.conflicts.map(function (j) {
+          return "<li><b class=\"num\">" + hm(j.start) + "–" + hm(j.start + j.dur) + "</b> " + esc(j.label) + "<br><span class=\"hint\">" + esc(j.customer) + " · " + esc(j.address) + "</span></li>";
+        }).join("") + "</ul>";
+      }
+      h += "</div>";
+    }
+
+    // alternatives
+    if (bad && ev.alts.length) {
+      h += '<div><p class="section-label">대신 가능한 시간</p><div class="alts">' + ev.alts.map(function (a, i) {
+        var on = sel && sel.date === a.date && sel.start === a.start;
+        var why = a.sameDay ? "같은 날 다른 시간" : (cur.full ? "그날 예약 없음" : (cur.start != null && a.start === cur.start ? "같은 시간, 다른 날" : "가장 가까운 빈 시간"));
+        return '<button type="button" class="alt" data-alt="' + i + '" aria-pressed="' + (on ? "true" : "false") + '"><span><span class="alt-date">' + whenText(a.date, a.start, cur.full) + '</span><br><span class="alt-why">' + why + '</span></span><span class="alt-mark"></span></button>';
+      }).join("") + "</div></div>";
+    }
+
+    // actions
+    if (added) h += '<div class="done-banner">일정표에 넣었어요 · ' + whenText(sel.date, sel.start, cur.full) + "</div>";
+    else if (sel) h += '<button type="button" class="btn btn-primary" id="addBtn">' + whenText(sel.date, sel.start, cur.full) + " 일정표에 넣기</button>";
+    else if (bad && ev.alts.length) h += '<p class="hint" style="margin:0">위에서 시간을 고르면 일정표에 바로 넣을 수 있어요. 고객에게 먼저 물어보려면 아래 답장을 보내세요.</p>';
+
+    h += '<div><p class="section-label"><label for="replyText">고객에게 보낼 답장</label></p><textarea class="reply" id="replyText">' + esc(replyText()) + "</textarea>";
+    h += '<div class="row" style="margin-top:8px"><button type="button" class="btn btn-grow" id="copyBtn">답장 복사</button>';
+    if (cur.phone) h += '<a class="btn btn-grow" id="smsLink" href="sms:' + esc(cur.phone) + "?&body=" + encodeURIComponent(replyText()) + '">문자앱 열기</a>';
+    h += "</div>" + (cur.phone ? '<p class="phone-line">받는 사람 <span class="num">' + esc(cur.phone) + "</span></p>" : "") + "</div>";
+
+    h += "</div>";
+    box.innerHTML = h;
+    box.classList.remove("fresh"); if (fresh) { void box.offsetWidth; box.classList.add("fresh"); }
+  }
+
+  function reevaluate(fresh) {
+    ev = evaluate(cur);
+    if (!added) sel = (ev.status === "ok" || ev.status === "suggest") ? { date: cur.date, start: ev.start } : null;
+    var msg = state.inbox.find(function (m) { return m.id === cur.msgId; });
+    if (msg && !msg.done) { msg.result = pillFor(ev.status); save(); }
+    renderInbox(); renderResult(fresh);
+  }
+
+  function analyze(text, from, id) {
+    cur = parseSMS(text); cur.text = text; cur.msgId = id;
+    if (!cur.phone) cur.phone = from || "";
+    sel = null; added = false;
+    reevaluate(true);
+    if ("vibrate" in navigator && ev.status === "conflict") { try { navigator.vibrate([120, 80, 120]); } catch (e) {} }
+    $("resultAnchor").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // ---------- schedule view ----------
+  function renderSched() {
+    var T = today0(), tk = key(T);
+    var upcoming = state.jobs.filter(function (j) { return j.date >= tk; });
+    var weekEnd = key(addDays(mondayOf(T), 6));
+    var thisWeek = upcoming.filter(function (j) { return j.date <= weekEnd; }).length;
+    var freeDays = 0, html = "";
+    for (var i = 0; i < 14; i++) {
+      var d = addDays(T, i), k = key(d), js = dayJobs(k), sun = d.getDay() === 0;
+      if (!sun && !js.length) freeDays++;
+      if (sun && !js.length) continue;
+      var busy = js.reduce(function (s, j) { return s + j.dur; }, 0);
+      html += '<div class="day' + (sun ? " sunday" : "") + '"><div class="day-head"><span class="day-name">' + fmtDate(k) + (i === 0 ? "<small>오늘</small>" : i === 1 ? "<small>내일</small>" : "") + '</span><span class="day-load">' +
+        (sun ? "휴무" : js.length ? js.length + "건 · " + fmtDur(busy) : "비어 있음") + "</span></div>";
+      if (!sun) html += timeline(k, null);
+      if (js.length) {
+        html += '<ul class="jobs">' + js.map(function (j) {
+          return '<li class="job"><span class="job-time">' + (j.fullDay ? "종일" : hm(j.start) + "–" + hm(j.start + j.dur)) + '</span><div class="job-main">' + esc(j.label) +
+            '<div class="job-who">' + esc(j.customer || "이름 없음") + (j.address ? " · " + esc(j.address) : "") + (j.phone ? ' · <span class="num">' + esc(j.phone) + "</span>" : "") + "</div></div>" +
+            '<button type="button" class="job-del' + (armedDel === j.id ? " armed" : "") + '" data-del="' + esc(j.id) + '">' + (armedDel === j.id ? "정말 삭제" : "삭제") + "</button></li>";
+        }).join("") + "</ul>";
+      }
+      html += "</div>";
+    }
+    $("days").innerHTML = html;
+    $("schedSummary").innerHTML =
+      '<div class="stat"><b>' + dayJobs(tk).length + "</b><span>오늘</span></div>" +
+      '<div class="stat"><b>' + thisWeek + "</b><span>이번 주</span></div>" +
+      '<div class="stat"><b>' + freeDays + "</b><span>2주 내 빈 날</span></div>";
+    $("jobCount").textContent = " " + upcoming.length;
+  }
+
+  // ---------- events ----------
+  function showView(v) {
+    $("view-inbox").hidden = v !== "inbox"; $("view-sched").hidden = v !== "sched";
+    $("tab-inbox").setAttribute("aria-selected", v === "inbox"); $("tab-sched").setAttribute("aria-selected", v === "sched");
+    if (v === "sched") renderSched();
+    window.scrollTo(0, 0);
+  }
+  document.querySelectorAll(".tab").forEach(function (b) { b.addEventListener("click", function () { showView(b.dataset.view); }); });
+
+  $("inbox").addEventListener("click", function (e) {
+    var b = e.target.closest(".sms"); if (!b) return;
+    var m = state.inbox.find(function (x) { return x.id === b.dataset.id; });
+    if (m) analyze(m.text, m.from, m.id);
+  });
+
+  $("pasteForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var txt = $("pasteText").value.trim();
+    if (!txt) { toast("문자 내용을 붙여넣어 주세요"); return; }
+    var id = "p" + Date.now(), d = new Date();
+    state.inbox.unshift({ id: id, from: "직접 입력", time: fmtTime(d.getHours() * 60 + d.getMinutes()).replace(/시 ?/, ":").replace(/분/, "").replace(/:$/, ":00"), text: txt });
+    $("pasteText").value = "";
+    save(); analyze(txt, "", id);
+  });
+
+  $("result").addEventListener("change", function (e) {
+    if (!cur) return;
+    if (e.target.id === "fDate") cur.date = e.target.value || null;
+    else if (e.target.id === "fTime") { var v = e.target.value; if (v) { var p = v.split(":"); cur.start = +p[0] * 60 + +p[1]; } else cur.start = null; }
+    else if (e.target.id === "fDur") cur.dur = +e.target.value;
+    else return;
+    added = false; sel = null; reevaluate(false);
+  });
+  $("result").addEventListener("input", function (e) {
+    if (e.target.id === "replyText" && $("smsLink")) $("smsLink").href = "sms:" + cur.phone + "?&body=" + encodeURIComponent(e.target.value);
+  });
+  $("result").addEventListener("click", function (e) {
+    var a = e.target.closest(".alt");
+    if (a && !added) { var alt = ev.alts[+a.dataset.alt]; sel = (sel && sel.date === alt.date && sel.start === alt.start) ? null : { date: alt.date, start: alt.start }; renderResult(false); return; }
+    if (e.target.id === "addBtn" && sel && !added) {
+      state.jobs.push({ id: "j" + Date.now(), date: sel.date, start: sel.start, dur: cur.full ? FULL_DUR : cur.dur, fullDay: cur.full, label: cur.label, customer: cur.customer, phone: cur.phone, address: cur.address });
+      added = true;
+      var msg = state.inbox.find(function (m) { return m.id === cur.msgId; });
+      if (msg) { msg.result = { tone: "ok", text: "일정 등록됨" }; msg.done = true; }
+      save(); renderInbox(); renderResult(false); renderSched(); toast("일정표에 넣었어요");
+      return;
+    }
+    if (e.target.id === "copyBtn") {
+      var ta = $("replyText"), txt = ta.value;
+      var fallback = function () { ta.focus(); ta.select(); toast("길게 눌러 복사해 주세요"); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function () { toast("답장을 복사했어요"); }, fallback);
+      else fallback();
+    }
+  });
+
+  $("days").addEventListener("click", function (e) {
+    var b = e.target.closest(".job-del"); if (!b) return;
+    var id = b.dataset.del;
+    if (armedDel === id) { state.jobs = state.jobs.filter(function (j) { return j.id !== id; }); armedDel = null; save(); toast("일정을 지웠어요"); if (cur) reevaluate(false); }
+    else armedDel = id;
+    renderSched();
+  });
+
+  $("resetBtn").addEventListener("click", function () {
+    var d = sampleData(); d.day = key(today0()); state = d; save();
+    cur = null; ev = null; sel = null; added = false; armedDel = null;
+    $("result").innerHTML = '<div class="sheet-empty">위에서 문자를 하나 누르면<br>날짜·시간·작업을 읽고 일정표와 겹치는지 알려줘요.</div>';
+    renderInbox(); renderSched(); toast("예시 데이터로 되돌렸어요");
+  });
+
+  var T0 = today0();
+  $("todayLabel").textContent = "오늘 " + (T0.getMonth() + 1) + "월 " + T0.getDate() + "일 " + DOW[T0.getDay()] + "요일";
+  renderInbox(); renderSched();
+})();
+</script>
