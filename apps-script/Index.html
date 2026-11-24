@@ -200,6 +200,7 @@ body { margin: 0; }
 .howto .btn { font-size: 13px; padding: 8px 12px; }
 .phone-line a { color: var(--accent); font-weight: 600; }
 .detail a { color: var(--accent); }
+.hook { display: block; margin-top: 6px; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); color: var(--fg); font-size: 12px; overflow-wrap: anywhere; user-select: all; }
 </style>
 </head>
 <body>
@@ -313,7 +314,9 @@ var state = <?!= bootJson ?>;
   }
 
   function renderSettings() {
-    var s = state.settings, h = "<h2>알림 · AI 설정</h2><ol>";
+    var s = state.settings, h = "<h2>연결 상태</h2><ol>", hook = APP_URL + "?key=" + KEY;
+    h += "<li>문자 전달 앱 " + (s.lastPostAt ? "연결됨<span>마지막으로 문자를 받은 시각: " + esc(s.lastPostAt) + "</span>" : "아직 연결 기록 없음<span>전달 앱의 Webhook URL 칸에 아래 주소를 넣고, 다른 폰에서 테스트 문자를 보내 보세요.</span>") +
+      '<span class="hook num" id="hookUrl">' + esc(hook) + '</span><button type="button" class="btn" id="copyHook" style="margin-top:6px">전달 앱 주소 복사</button></li>';
     if (s.kakao) h += '<li>카카오톡 알림 켜짐<span>새 문의가 오면 카카오톡 \'나와의 채팅\'으로 알려줘요.</span><button type="button" class="btn" id="testKakao" style="margin-top:6px">테스트 알림 보내기</button></li>';
     else if (s.kakaoReady) h += '<li>카카오톡 알림이 아직 연결 안 됐어요<span>아빠 카카오 계정으로 한 번만 로그인하면 돼요.</span><a class="btn btn-primary" style="margin-top:6px;display:inline-block" href="' + esc(APP_URL + "?key=" + KEY + "&kakao=login") + '" target="_top">카카오톡 연결하기</a></li>';
     else h += "<li>카카오톡 알림 꺼짐<span>설명서의 '카카오톡 알림' 단계를 하면 켜져요.</span></li>";
@@ -575,6 +578,12 @@ var state = <?!= bootJson ?>;
   });
 
   $("settings").addEventListener("click", function (e) {
+    if (e.target.id === "copyHook") {
+      var u = $("hookUrl").textContent;
+      var pick = function () { var r = document.createRange(); r.selectNodeContents($("hookUrl")); var w = window.getSelection(); w.removeAllRanges(); w.addRange(r); toast("주소를 길게 눌러 복사해 주세요"); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(u).then(function () { toast("주소를 복사했어요. 전달 앱에 붙여넣으세요"); }, pick); else pick();
+      return;
+    }
     if (e.target.id !== "testKakao") return;
     e.target.disabled = true;
     run("sendTestKakao").then(function (ok) { toast(ok ? "카카오톡을 확인해 보세요" : "보내지 못했어요. 다시 연결해 주세요."); }).finally(function () { e.target.disabled = false; });

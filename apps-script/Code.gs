@@ -50,7 +50,10 @@ function setup() {
     if (t.getHandlerFunction() === "keepKakaoAlive") ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger("keepKakaoAlive").timeBased().everyDays(1).atHour(4).inTimezone(TZ).create();
-  Logger.log("준비 완료. 이제 [배포 > 새 배포 > 웹 앱]으로 배포한 뒤 showLinks 를 실행하세요.");
+  var deployed = false;
+  try { deployed = !!appUrl_(); } catch (err) {}
+  if (deployed) showLinks();
+  else Logger.log("준비 완료. 이제 [배포 > 새 배포 > 웹 앱]으로 배포한 뒤 showLinks 를 실행하세요.");
 }
 
 function ensureSheet_(ss, name, cols) {
@@ -64,9 +67,26 @@ function ensureSheet_(ss, name, cols) {
 /** 배포 후 실행: 아빠 휴대폰에 넣을 주소들을 로그에 보여줌 */
 function showLinks() {
   var url = appUrl_(), s = secret_();
+  if (!url) { Logger.log("아직 배포 전이에요. [배포 > 새 배포 > 웹 앱]을 먼저 하세요."); return; }
+  if (!/\/exec$/.test(url)) {
+    Logger.log("주소가 /exec 로 끝나지 않아요: " + url + "\n배포 창에 나온 '웹 앱 URL'(…/exec)을 복사해서 [프로젝트 설정 > 스크립트 속성]에 APP_URL 로 넣고 showLinks 를 다시 실행하세요.");
+  }
   Logger.log("① 휴대폰 화면 주소 (아빠 폰 크롬에서 열고 '홈 화면에 추가'):\n" + url + "?key=" + s);
   Logger.log("② 문자 전달 앱에 넣을 주소 (Webhook URL):\n" + url + "?key=" + s);
   Logger.log("③ 카카오 Redirect URI (카카오 개발자 사이트에 등록):\n" + url);
+  var ss = SpreadsheetApp.getActive(), sh = ss.getSheetByName("안내") || ss.insertSheet("안내", 0);
+  sh.clear();
+  sh.getRange(1, 1, 6, 2).setValues([
+    ["위더스 일정비서 주소", "이 칸의 주소를 복사해서 쓰세요 (key 는 비밀번호와 같아요)"],
+    ["① 아빠 폰 화면 주소", url + "?key=" + s],
+    ["② 문자 전달 앱 주소", url + "?key=" + s],
+    ["③ 카카오 Redirect URI", url],
+    ["", ""],
+    ["만든 시각", stamp_()]
+  ]);
+  sh.getRange(1, 1, 1, 2).setFontWeight("bold");
+  sh.setColumnWidth(1, 170); sh.setColumnWidth(2, 640);
+  Logger.log("시트의 '안내' 탭에도 주소를 적어 두었어요.");
 }
 
 function appUrl_() { return props_().getProperty("APP_URL") || ScriptApp.getService().getUrl(); }
@@ -86,7 +106,7 @@ function doGet(e) {
   if (!q.key || q.key !== props_().getProperty("SECRET")) return simplePage_("주소가 올바르지 않아요", "처음 받은 주소(?key=... 가 붙은 주소)로 열어 주세요.");
   if (q.kakao === "login") return kakaoLoginPage_();
 
-  var t = HtmlService.createTemplateFromFile("Index");
+  var t = typeof INDEX_HTML === "string" ? HtmlService.createTemplate(INDEX_HTML) : HtmlService.createTemplateFromFile("Index");
   t.key = q.key;
   t.appUrl = appUrl_();
   t.cfgJson = JSON.stringify(CONFIG);
@@ -101,6 +121,7 @@ function doGet(e) {
 function doPost(e) {
   var q = (e && e.parameter) || {};
   if (!q.key || q.key !== props_().getProperty("SECRET")) return json_({ ok: false, error: "bad key" });
+  props_().setProperty("LAST_POST_AT", stamp_()); // 문자 전달 앱 연결 확인용
   var body = {};
   try { body = JSON.parse((e.postData && e.postData.contents) || "{}"); } catch (err) { body = q; }
   var from = String(body.from || body.sender || body.phone || body.number || q.from || "").trim();
@@ -248,7 +269,7 @@ function state_() {
   return {
     jobs: readJobs_().filter(function (j) { return j.date >= from; }),
     inbox: inbox,
-    settings: { kakaoReady: !!props_().getProperty("KAKAO_REST_KEY"), kakao: kakaoConnected_(), ai: aiEnabled_(), aiModel: aiModel_() }
+    settings: { kakaoReady: !!props_().getProperty("KAKAO_REST_KEY"), kakao: kakaoConnected_(), ai: aiEnabled_(), aiModel: aiModel_(), lastPostAt: props_().getProperty("LAST_POST_AT") || "" }
   };
 }
 
