@@ -73,7 +73,10 @@ function showLinks() {
   var url = appUrl_(), s = secret_();
   if (!url) { Logger.log("아직 배포 전이에요. [배포 > 새 배포 > 웹 앱]을 먼저 하세요."); return; }
   if (!/\/exec$/.test(url)) {
-    Logger.log("주소가 /exec 로 끝나지 않아요: " + url + "\n배포 창에 나온 '웹 앱 URL'(…/exec)을 복사해서 [프로젝트 설정 > 스크립트 속성]에 APP_URL 로 넣고 showLinks 를 다시 실행하세요.");
+    // 편집기에서 실행하면 구글이 로그인 전용 /dev 주소를 돌려줄 때가 있어요. 그 주소는 아빠 폰에서 안 열려서 적지 않아요.
+    var msg = "[배포 > 배포 관리]의 '웹 앱 URL'(…/exec) 뒤에 ?key=" + s + " 를 붙여서 쓰세요";
+    Logger.log("편집기에서는 진짜 주소(/exec)를 알 수 없어요. " + msg);
+    url = null;
   }
   Logger.log("① 휴대폰 화면 주소 (아빠 폰 크롬에서 열고 '홈 화면에 추가'):\n" + url + "?key=" + s);
   Logger.log("② 문자 전달 앱에 넣을 주소 (Webhook URL):\n" + url + "?key=" + s);
@@ -82,9 +85,9 @@ function showLinks() {
   sh.clear();
   sh.getRange(1, 1, 6, 2).setValues([
     ["위더스 일정비서 주소", "이 칸의 주소를 복사해서 쓰세요 (key 는 비밀번호와 같아요)"],
-    ["① 아빠 폰 화면 주소", url + "?key=" + s],
-    ["② 문자 전달 앱 주소", url + "?key=" + s],
-    ["③ 카카오 Redirect URI", url],
+    ["① 아빠 폰 화면 주소", url ? url + "?key=" + s : msg],
+    ["② 문자 전달 앱 주소", url ? url + "?key=" + s : "① 과 같은 주소 (아빠 폰 화면 맨 아래 '전달 앱 주소 복사' 버튼으로도 복사돼요)"],
+    ["③ 카카오 Redirect URI", url || "[배포 관리]의 '웹 앱 URL' 그대로 (…/exec)"],
     ["", ""],
     ["만든 시각", stamp_()]
   ]);
